@@ -8,6 +8,8 @@ Tells Mantella how aroused NPCs are (OSL Aroused), their appetite, and when they
 | esp | Plugin as Spriggit YAML |
 | test | Test harness |
 
-Requires: Mantella, OSL Aroused.
-
-Author: itsPigeon2000
+| Requires | Link |
+|---|---|
+| Integration Hub | [Mantella-Living-World-Hub](https://github.com/Abhisek571/Mantella-Living-World-Hub) |
+| Mantella | [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/98631) |
+| OSL Aroused | [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/65454) |
