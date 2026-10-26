@@ -28,6 +28,8 @@ int Property MaxTracked = 10 AutoReadOnly
 ; Settings and override lists, read with PapyrusUtil from
 ; Data\SKSE\Plugins\StorageUtilData\MantellaOSLA\settings.json
 string Property SETTINGS_FILE = "MantellaOSLA/settings.json" AutoReadOnly
+; Temperament defaults and the never-force switch live in the Integration Hub.
+string Property HUB_PLUGIN = "Mantella Living World - Integration Hub.esp" AutoReadOnly
 ; Kept on the actor by StorageUtil.
 string Property KEY_PEAK_SINCE = "MantellaOSLA_PeakSince" AutoReadOnly ; game days, first seen at 100
 string Property KEY_PEAK_RAISES = "MantellaOSLA_PeakRaises" AutoReadOnly ; need raises applied this peak stretch
@@ -116,8 +118,8 @@ EndFunction
 ; ---------------------------------------------------------------------------
 
 int Function GetTier(Actor akActor)
-	; Mantella - Adult Expansion - OStim's per-NPC choice (1 reserved, 2 bold, 3 forward) beats everything.
-	int override = StorageUtil.GetIntValue(akActor, "MAE_TemperOverride", 0)
+	; The Integration Hub's per-NPC choice (1 reserved, 2 bold, 3 forward) beats everything.
+	int override = StorageUtil.GetIntValue(akActor, "MLW_TemperOverride", 0)
 	if override > 0
 		return override - 1
 	endif
@@ -128,7 +130,7 @@ int Function GetTier(Actor akActor)
 		return TIER_RESERVED
 	endif
 	; ... then its default for everyone else, unless that is Auto (0).
-	GlobalVariable defaultTier = Game.GetFormFromFile(0x00080D, "Mantella - Adult Expansion - OStim.esp") as GlobalVariable
+	GlobalVariable defaultTier = Game.GetFormFromFile(0x000802, HUB_PLUGIN) as GlobalVariable
 	if defaultTier && defaultTier.GetValueInt() > 0
 		return defaultTier.GetValueInt() - 1
 	endif
@@ -145,8 +147,8 @@ EndFunction
 ; OSL libido is one value shared by every NPC, so it cannot tell NPCs apart.
 ; The arousal multiplier and the exhibitionist flag are per NPC.
 bool Function IsLusty(Actor akActor)
-	; Adult Expansion setup can tell Auto to ignore the appetite rating and use OSL values only.
-	GlobalVariable source = Game.GetFormFromFile(0x00080E, "Mantella - Adult Expansion - OStim.esp") as GlobalVariable
+	; The hub's setup can tell Auto to ignore the appetite rating and use OSL values only.
+	GlobalVariable source = Game.GetFormFromFile(0x000803, HUB_PLUGIN) as GlobalVariable
 	int appetite = 0
 	if !source || source.GetValueInt() == 0
 		appetite = GetAppetite(akActor)
@@ -368,8 +370,8 @@ string Function PeakLongLine(int slot)
 		return ""
 	endif
 	_peakLongSent[slot] = true
-	; Adult Expansion "Never force-start a scene" (default on): she begs, but leaves it to the player.
-	GlobalVariable neverForce = Game.GetFormFromFile(0x000810, "Mantella - Adult Expansion - OStim.esp") as GlobalVariable
+	; The hub's "Never force-start a scene" (default on): she begs, but leaves it to the player.
+	GlobalVariable neverForce = Game.GetFormFromFile(0x000804, HUB_PLUGIN) as GlobalVariable
 	if !neverForce || neverForce.GetValueInt() == 1
 		return npc.GetDisplayName() + " has been at peak arousal for a long while and can't hold back any more; " + Pronoun(npc) + " begs the player for sex right here, right now, but does not start anything without the player's yes."
 	endif

@@ -2,7 +2,7 @@
     "identifier": "mantella_osla_rate_appetite",
     "name": "RateAppetite",
     "description": "Use once, only when told that the speaking NPC's own sexual appetite has not been rated yet. Rate it from their personality, background and nature: how many climaxes in one session it takes to satisfy them. Keep talking normally; do not mention the rating.",
-    "note": "Needs OSL Aroused and Mantella - OSL Aroused Bridge. Stored on the NPC and never asked again.",
+    "note": "Needs OSL Aroused and Mantella Living World - Arousal. Stored on the NPC and never asked again.",
     "key": "RateAppetite",
     "parameters": {
         "appetite": {
