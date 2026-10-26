@@ -1,0 +1,13 @@
+SpriggitSource:
+  PackageName: Spriggit.Yaml.Skyrim
+  Version: 0.40
+ModKey: Mantella - OSL Aroused Bridge.esp
+GameRelease: SkyrimSE
+ModHeader:
+  Flags:
+  - Small
+  Author: itsPigeon2000
+  Description: Tells Mantella how aroused the player and conversation NPCs are, using OSL Aroused.
+  MasterReferences:
+  - Master: Skyrim.esm
+    FileSize: 0

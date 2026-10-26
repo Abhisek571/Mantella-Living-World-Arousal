@@ -1,0 +1,26 @@
+{
+    "identifier": "mantella_osla_rate_appetite",
+    "name": "RateAppetite",
+    "description": "Use once, only when told that the speaking NPC's own sexual appetite has not been rated yet. Rate it from their personality, background and nature: how many climaxes in one session it takes to satisfy them. Keep talking normally; do not mention the rating.",
+    "note": "Needs OSL Aroused and Mantella - OSL Aroused Bridge. Stored on the NPC and never asked again.",
+    "key": "RateAppetite",
+    "parameters": {
+        "appetite": {
+            "type": "integer",
+            "description": "Climaxes in one session needed to satisfy the speaking NPC. 1-3: easily satisfied or not very interested in sex. 4-8: an ordinary healthy appetite. 9-15: very lustful. 16-30: practically insatiable, for example a succubus or someone defined by lust.",
+            "minimum": 1,
+            "maximum": 30
+        }
+    },
+    "required": ["appetite"],
+    "prompt": "If you are told that your sexual appetite has not been rated yet, begin your response with '{key}:'",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

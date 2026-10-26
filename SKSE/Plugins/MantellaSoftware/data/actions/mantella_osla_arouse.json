@@ -1,0 +1,17 @@
+{
+    "identifier": "mantella_osla_arouse",
+    "name": "BecomeAroused",
+    "description": "Use when the conversation turns flirtatious, romantic or erotic and it genuinely excites the speaking NPC. Raises that NPC's arousal a little. Do not use for ordinary friendly talk.",
+    "note": "Needs OSL Aroused and Mantella - OSL Aroused Bridge. Each use adds 10 arousal (0-100) to the NPC who speaks.",
+    "key": "Aroused",
+    "prompt": "If the conversation turns flirtatious, romantic or erotic and it genuinely excites you, begin your response with '{key}:'",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

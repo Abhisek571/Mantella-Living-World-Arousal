@@ -1,0 +1,16 @@
+{
+    "float": {
+        "multiplier_threshold": 1.5,
+        "peak_minutes": 5.0,
+        "peak_raise": 0.2,
+        "recovery_days": 1.0,
+        "overwhelm_ratio": 1.5
+    },
+    "int": {
+        "lusty_appetite": 15
+    },
+    "stringList": {
+        "forward": [],
+        "reserved": []
+    }
+}

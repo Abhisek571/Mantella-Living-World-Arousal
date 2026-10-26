@@ -1,0 +1,13 @@
+FormKey: 000800:Mantella - OSL Aroused Bridge.esp
+EditorID: MantellaOSLA_Quest
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MantellaOSLA_Main
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella OSL Aroused Bridge
+Flags:
+- StartGameEnabled
+- RunOnce
+NextAliasID: 0

@@ -1,0 +1,26 @@
+{
+    "identifier": "mantella_osla_add_climaxes",
+    "name": "AddClimaxes",
+    "description": "Use when the player describes, as part of the story, the speaking NPC climaxing a number of times that was not an actual in-game scene, for example 'we went at it for four days and you came a hundred times'. Pass how many times. Do not use for climaxes that just happened in the current scene; those are counted already.",
+    "note": "Needs OSL Aroused and Mantella - OSL Aroused Bridge. Adds to the NPC's climax count toward being satisfied.",
+    "key": "AddClimaxes",
+    "parameters": {
+        "count": {
+            "type": "integer",
+            "description": "How many times the speaking NPC climaxed in what the player described. Use the player's number if given; otherwise estimate from what was described.",
+            "minimum": 1,
+            "maximum": 1000
+        }
+    },
+    "required": ["count"],
+    "prompt": "If the player describes you climaxing a number of times in the story, begin your response with '{key}:'",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

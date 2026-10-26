@@ -1,0 +1,13 @@
+FormKey: 000800:MantellaOSLA_TEST.esp
+EditorID: MantellaOSLA_TestQuest
+VirtualMachineAdapter:
+  Scripts:
+  - Name: MantellaOSLA_TestHarness
+  FileName: ''
+Name:
+  TargetLanguage: English
+  Value: Mantella OSLA Test Harness
+Flags:
+- StartGameEnabled
+- RunOnce
+NextAliasID: 0

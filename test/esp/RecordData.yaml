@@ -1,0 +1,13 @@
+SpriggitSource:
+  PackageName: Spriggit.Yaml.Skyrim
+  Version: 0.40
+ModKey: MantellaOSLA_TEST.esp
+GameRelease: SkyrimSE
+ModHeader:
+  Flags:
+  - Small
+  Author: itsPigeon2000
+  Description: TEST ONLY harness for Mantella OSL Aroused Bridge.
+  MasterReferences:
+  - Master: Skyrim.esm
+    FileSize: 0
