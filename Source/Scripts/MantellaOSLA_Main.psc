@@ -111,8 +111,8 @@ EndFunction
 
 ; ---------------------------------------------------------------------------
 ; Temperament: lusty (high appetite, or before rating the OSL arousal multiplier or
-; exhibitionist) and close to the player (vanilla Lover rank, Romantasy Lover or
-; Spouse, M.A.R.A.S engaged or married).
+; exhibitionist) and close to the player (vanilla Lover rank, M.A.R.A.S engaged
+; or married).
 ; Both = forward, either = bold, neither = reserved. The settings file can
 ; force a name to "forward" (or the old "insatiable") or "reserved".
 ; ---------------------------------------------------------------------------
@@ -163,11 +163,6 @@ EndFunction
 bool Function IsClose(Actor akActor)
 	Actor player = Game.GetPlayer()
 	if akActor.GetRelationshipRank(player) >= 4
-		return true
-	endif
-	; Romantasy mirrors its tier into this faction: rank 4 = Lover, 5 = Spouse.
-	Faction romanceLevel = Game.GetFormFromFile(0x000800, "CS_Romantasy.esp") as Faction
-	if romanceLevel && akActor.GetFactionRank(romanceLevel) >= 4
 		return true
 	endif
 	if Game.GetModByName("TT_MARAS.esp") != 255 || Game.GetLightModByName("TT_MARAS.esp") != 255

@@ -20,7 +20,6 @@ Credits
 - PapyrusUtil SE by exiledviper and meh321
 - OSL Aroused by ozooma10
 - M.A.R.A.S and Lover's Ledger by TangyTweaks
-- Romantasy by ColdSun
 
 License
 GNU Affero General Public License v3.0 (see LICENSE.txt). Script sources are included in Scripts\Source.
