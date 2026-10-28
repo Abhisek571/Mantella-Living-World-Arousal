@@ -12,7 +12,9 @@
             "maximum": 30
         }
     },
-    "required": ["appetite"],
+    "required": [
+        "appetite"
+    ],
     "prompt": "If you are told that your sexual appetite has not been rated yet, begin your response with '{key}:'",
     "allowed_games": [
         "skyrim"
@@ -22,5 +24,6 @@
     "allow_repeat": false,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": false
+    "radiant": false,
+    "lw_gate": "close"
 }

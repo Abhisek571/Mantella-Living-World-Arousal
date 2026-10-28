@@ -1,6 +1,8 @@
 Scriptname MantellaOSLA_Main extends Quest
 {Tells Mantella how aroused the player and the NPCs in a conversation are, using OSL Aroused.
 How far an NPC acts on it depends on their temperament: reserved, bold or forward.
+For strangers it is only a private mood that has nothing to do with the player; interest in
+the player has to be earned (friend or closer), unless the NPC belongs to an open group.
 Each NPC also gets an appetite, rated once by Mantella from their bio: how many climaxes
 in one session it takes to satisfy them.}
 
@@ -39,6 +41,12 @@ string Property KEY_CLIMAXES = "MantellaOSLA_Climaxes" AutoReadOnly ; climaxes s
 string Property KEY_CLIMAX_TIME = "MantellaOSLA_ClimaxTime" AutoReadOnly ; game days, last drain
 string Property KEY_SATISFIED = "MantellaOSLA_Satisfied" AutoReadOnly
 string Property KEY_OVERWHELMED = "MantellaOSLA_Overwhelmed" AutoReadOnly
+; 1 always on duty, -1 never; 0 or unset = judged from guard status and duty_factions.
+string Property KEY_ON_DUTY = "MantellaOSLA_OnDuty" AutoReadOnly
+; Written for the other modules: 0 stranger, 1 close, 2 open group. Above 0 passes the "close" action gate.
+string Property KEY_IS_CLOSE = "MLW_IsClose" AutoReadOnly
+; Set above 0 by the Relationships module for NPCs it counts as friend or closer.
+string Property KEY_RELATIONSHIPS_CLOSE = "MRB_Close" AutoReadOnly
 
 int Property MaxAppetite = 30 AutoReadOnly
 int Property MaxStoryClimaxes = 1000 AutoReadOnly
@@ -50,9 +58,17 @@ int Property TIER_RESERVED = 0 AutoReadOnly
 int Property TIER_BOLD = 1 AutoReadOnly
 int Property TIER_FORWARD = 2 AutoReadOnly
 
+; How an NPC stands with the player
+int Property STANDING_STRANGER = 0 AutoReadOnly
+int Property STANDING_CLOSE = 1 AutoReadOnly
+int Property STANDING_OPEN = 2 AutoReadOnly
+; How far to look for the NPC's own spouse or partner (game units, about 30 m).
+float Property SpouseRadius = 1024.0 AutoReadOnly  ; about 15 m: in earshot
+
 Actor[] _actors
 int[] _bands
 int[] _tiers
+int[] _standing
 bool[] _peakLongSent
 bool[] _rateAsked
 int _playerBand = -1
@@ -91,6 +107,9 @@ Function AllocateTracked()
 	if !_rateAsked
 		_rateAsked = new bool[10]
 	endif
+	if !_standing
+		_standing = new int[10]
+	endif
 EndFunction
 
 ; 0 calm, 1 a little flushed, 2 noticeably aroused, 3 intensely aroused, 4 peak (100).
@@ -110,38 +129,193 @@ int Function GetBand(Actor akActor)
 EndFunction
 
 ; ---------------------------------------------------------------------------
-; Temperament: lusty (high appetite, or before rating the OSL arousal multiplier or
-; exhibitionist) and close to the player (vanilla Lover rank, M.A.R.A.S engaged
-; or married).
-; Both = forward, either = bold, neither = reserved. The settings file can
-; force a name to "forward" (or the old "insatiable") or "reserved".
+; Temperament. On duty, or with their own spouse nearby: reserved, always.
+; Strangers are reserved and their arousal is a private mood. Open groups
+; (settings open_races / open_factions / open_keywords) are forward even as
+; strangers. Close NPCs (friend or above) weigh lusty (high appetite, or before
+; rating the OSL arousal multiplier or exhibitionist) and intimate (vanilla Lover
+; rank, M.A.R.A.S engaged or married): both = forward, either = bold, neither =
+; reserved. The settings file can force a name to "forward" (or the old
+; "insatiable") or "reserved".
 ; ---------------------------------------------------------------------------
 
 int Function GetTier(Actor akActor)
-	; The Integration Hub's per-NPC choice (1 reserved, 2 bold, 3 forward) beats everything.
+	return TierFor(akActor, GetStanding(akActor))
+EndFunction
+
+int Function TierFor(Actor akActor, int aiStanding)
+	if IsOnDuty(akActor) || SpouseNearby(akActor)
+		return TIER_RESERVED
+	endif
+	; The Integration Hub's per-NPC choice (1 reserved, 2 bold, 3 forward) beats the rest.
 	int override = StorageUtil.GetIntValue(akActor, "MLW_TemperOverride", 0)
 	if override > 0
 		return override - 1
 	endif
 	string name = akActor.GetDisplayName()
-	if JsonUtil.StringListHas(SETTINGS_FILE, "forward", name) || JsonUtil.StringListHas(SETTINGS_FILE, "insatiable", name)
+	if IsNamedForward(akActor)
 		return TIER_FORWARD
 	elseif JsonUtil.StringListHas(SETTINGS_FILE, "reserved", name)
 		return TIER_RESERVED
 	endif
-	; ... then its default for everyone else, unless that is Auto (0).
+	if aiStanding == STANDING_OPEN
+		return TIER_FORWARD
+	elseif aiStanding == STANDING_STRANGER
+		return TIER_RESERVED
+	endif
+	; ... then its default for close NPCs, unless that is Auto (0).
 	GlobalVariable defaultTier = Game.GetFormFromFile(0x000802, HUB_PLUGIN) as GlobalVariable
 	if defaultTier && defaultTier.GetValueInt() > 0
 		return defaultTier.GetValueInt() - 1
 	endif
 	bool lusty = IsLusty(akActor)
-	bool close = IsClose(akActor)
-	if lusty && close
+	bool intimate = IsIntimate(akActor)
+	if lusty && intimate
 		return TIER_FORWARD
-	elseif lusty || close
+	elseif lusty || intimate
 		return TIER_BOLD
 	endif
 	return TIER_RESERVED
+EndFunction
+
+bool Function IsNamedForward(Actor akActor)
+	string name = akActor.GetDisplayName()
+	return JsonUtil.StringListHas(SETTINGS_FILE, "forward", name) || JsonUtil.StringListHas(SETTINGS_FILE, "insatiable", name)
+EndFunction
+
+; Closeness is earned: friend or above, a follower, the Relationships module's
+; say, or the player's own bold/forward choice for this NPC. An open group counts
+; only while off duty.
+int Function GetStanding(Actor akActor)
+	if StorageUtil.GetIntValue(akActor, "MLW_TemperOverride", 0) >= 2 || IsNamedForward(akActor) || IsClose(akActor)
+		return STANDING_CLOSE
+	elseif IsOpen(akActor) && !IsOnDuty(akActor)
+		return STANDING_OPEN
+	endif
+	return STANDING_STRANGER
+EndFunction
+
+; Guards and the listed duty factions (soldiers, knights, Thalmor) are on duty
+; unless they travel with the player.
+bool Function IsOnDuty(Actor akActor)
+	int flag = StorageUtil.GetIntValue(akActor, KEY_ON_DUTY, 0)
+	if flag != 0
+		return flag > 0
+	endif
+	if akActor.IsPlayerTeammate()
+		return false
+	endif
+	return akActor.IsGuard() || InListedFaction(akActor, "duty_factions")
+EndFunction
+
+; Their own spouse (vanilla Spouse association) or partner (Lover rank) close by.
+bool Function SpouseNearby(Actor akActor)
+	Actor partner = SpouseOf(akActor)
+	return partner && partner.Is3DLoaded() && partner.GetDistance(akActor) <= SpouseRadius
+EndFunction
+
+; The spouse's base record comes from the Spouse relationship (one native call; unmarried NPCs stop there). Cell
+; scans miss persistent NPCs such as Alvor and Sigrid, so the spouse's reference is found among the loaded actors
+; and remembered once found.
+Actor Function SpouseOf(Actor akActor)
+	Form known = StorageUtil.GetFormValue(akActor, "MantellaOSLA_Spouse")
+	if known
+		return known as Actor
+	endif
+	AssociationType spouse = Game.GetFormFromFile(0x0142CA, "Skyrim.esm") as AssociationType
+	ActorBase[] partners = PO3_SKSEFunctions.GetRelationships(akActor.GetActorBase(), spouse)
+	if !spouse || !partners || partners.Length == 0
+		return None
+	endif
+	Actor[] loaded = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
+	int i = loaded.Length
+	while i > 0
+		i -= 1
+		Actor other = loaded[i]
+		if other && other != akActor && partners.Find(other.GetActorBase()) >= 0
+			StorageUtil.SetFormValue(akActor, "MantellaOSLA_Spouse", other)
+			return other
+		endif
+	endWhile
+	return None
+EndFunction
+
+; Open groups, for NPCs whose nature is to be forward with anyone (succubi,
+; courtesans). Races by name or form, factions by form, keywords by EditorID or form.
+bool Function IsOpen(Actor akActor)
+	Race actorRace = akActor.GetRace()
+	int i = JsonUtil.StringListCount(SETTINGS_FILE, "open_races")
+	while i > 0
+		i -= 1
+		string entry = JsonUtil.StringListGet(SETTINGS_FILE, "open_races", i)
+		if actorRace && (entry == actorRace.GetName() || ResolveForm(entry) == actorRace)
+			return true
+		endif
+	endWhile
+	if InListedFaction(akActor, "open_factions")
+		return true
+	endif
+	i = JsonUtil.StringListCount(SETTINGS_FILE, "open_keywords")
+	while i > 0
+		i -= 1
+		string entry = JsonUtil.StringListGet(SETTINGS_FILE, "open_keywords", i)
+		Keyword kw = ResolveForm(entry) as Keyword
+		if !kw
+			kw = Keyword.GetKeyword(entry)
+		endif
+		if kw && (akActor.HasKeyword(kw) || (actorRace && actorRace.HasKeyword(kw)))
+			return true
+		endif
+	endWhile
+	return false
+EndFunction
+
+bool Function InListedFaction(Actor akActor, string asList)
+	int i = JsonUtil.StringListCount(SETTINGS_FILE, asList)
+	while i > 0
+		i -= 1
+		Faction fac = ResolveForm(JsonUtil.StringListGet(SETTINGS_FILE, asList, i)) as Faction
+		if fac && akActor.IsInFaction(fac)
+			return true
+		endif
+	endWhile
+	return false
+EndFunction
+
+; "0x00C90C|Some Mod.esp" (the plugin's own FormID, written the way PapyrusUtil
+; writes forms) -> the form; None when the entry is no form or the plugin is not loaded.
+Form Function ResolveForm(string asEntry)
+	int bar = StringUtil.Find(asEntry, "|")
+	if bar <= 0
+		return None
+	endif
+	string plugin = StringUtil.Substring(asEntry, bar + 1)
+	int lightIndex = Game.GetLightModByName(plugin)
+	if Game.GetModByName(plugin) == 255 && (lightIndex < 0 || lightIndex >= 4096)
+		return None
+	endif
+	return Game.GetFormFromFile(ParseHex(StringUtil.Substring(asEntry, 0, bar)), plugin)
+EndFunction
+
+; "0x00C90C" or "00C90C" -> 51468. Stops at the first character that is not a hex digit.
+int Function ParseHex(string asText)
+	; Upper and lower case both map to their value, whether Find matches case or not.
+	string digits = "0123456789abcdef0123456789ABCDEF"
+	int textLength = StringUtil.GetLength(asText)
+	int i = 0
+	if textLength >= 2 && StringUtil.Substring(asText, 0, 2) == "0x"
+		i = 2
+	endif
+	int value = 0
+	while i < textLength
+		int digit = StringUtil.Find(digits, StringUtil.GetNthChar(asText, i))
+		if digit < 0
+			return value
+		endif
+		value = value * 16 + digit % 16
+		i += 1
+	endWhile
+	return value
 EndFunction
 
 ; OSL libido is one value shared by every NPC, so it cannot tell NPCs apart.
@@ -160,12 +334,25 @@ bool Function IsLusty(Actor akActor)
 	return OSLArousedNative.GetArousalMultiplier(akActor) >= threshold || OSLArousedNative.IsActorExhibitionist(akActor)
 EndFunction
 
+; Friend or above (vanilla rank 1+), a follower, the Relationships module's close
+; status, or engaged/married.
 bool Function IsClose(Actor akActor)
+	if akActor.GetRelationshipRank(Game.GetPlayer()) >= 1 || akActor.IsPlayerTeammate()
+		return true
+	endif
+	if StorageUtil.GetIntValue(akActor, KEY_RELATIONSHIPS_CLOSE, 0) > 0
+		return true
+	endif
+	return IsIntimate(akActor)
+EndFunction
+
+; Vanilla Lover rank, or M.A.R.A.S engaged or married.
+bool Function IsIntimate(Actor akActor)
 	Actor player = Game.GetPlayer()
 	if akActor.GetRelationshipRank(player) >= 4
 		return true
 	endif
-	if Game.GetModByName("TT_MARAS.esp") != 255 || Game.GetLightModByName("TT_MARAS.esp") != 255
+	if Game.GetModByName("TT_MARAS.esp") != 255 || Game.GetLightModByName("TT_MARAS.esp") != 65535 ; light plugins: 65535 = not loaded
 		return MantellaOSLA_MARAS.IsEngagedOrMarried(akActor)
 	endif
 	return false
@@ -405,11 +592,26 @@ string Function Describe(Actor akActor, int band)
 	return name + " seems calm."
 EndFunction
 
-; An NPC's level, phrased by temperament.
-string Function DescribeNpc(Actor akActor, int band, int tier)
+; A stranger's level: a private mood, never aimed at the player. Nothing below noticeably aroused.
+string Function PrivateMood(Actor akActor, int band, int aiOldBand)
+	string name = akActor.GetDisplayName()
+	if band >= 3
+		return name + " is in a strongly sensual mood today, a private feeling not about anyone here; " + Pronoun(akActor) + " keeps it to " + Reflexive(akActor) + " and acts as usual."
+	elseif band == 2
+		return name + " is in a warm, restless mood today, a private feeling not about anyone here; " + Pronoun(akActor) + " keeps it to " + Reflexive(akActor) + "."
+	elseif aiOldBand >= 2
+		return name + "'s restless mood has passed."
+	endif
+	return ""
+EndFunction
+
+; An NPC's level, phrased by temperament; strangers get a private mood.
+string Function DescribeNpc(Actor akActor, int band, int tier, int aiStanding, int aiOldBand)
 	string name = akActor.GetDisplayName()
 	string p = Pronoun(akActor)
-	if band == 0
+	if aiStanding == STANDING_STRANGER && !IsSatisfied(akActor)
+		return PrivateMood(akActor, band, aiOldBand)
+	elseif band == 0
 		return name + " seems calm."
 	elseif band == 1
 		return name + " looks a little flushed."
@@ -455,9 +657,64 @@ Function ClearTracked()
 		_tiers[i] = TIER_RESERVED
 		_peakLongSent[i] = false
 		_rateAsked[i] = false
+		_standing[i] = STANDING_STRANGER
 		i += 1
 	endWhile
 	_playerBand = -1
+EndFunction
+
+; The player's own level goes only to NPCs who know the player well (close or
+; open), never to strangers. With strangers in the group it says who notices.
+; Waits until someone close is in the conversation.
+Function UpdatePlayerLine()
+	Actor player = Game.GetPlayer()
+	int band = GetBand(player)
+	if band == _playerBand
+		return
+	endif
+	int aware = 0
+	bool strangers = false
+	int i = 0
+	while i < MaxTracked
+		if _actors[i]
+			if _standing[i] == STANDING_STRANGER
+				strangers = true
+			else
+				aware += 1
+			endif
+		endif
+		i += 1
+	endWhile
+	if aware == 0
+		return
+	endif
+	_playerBand = band
+	string line = Describe(player, band)
+	if strangers
+		string names = ""
+		int added = 0
+		i = 0
+		while i < MaxTracked
+			if _actors[i] && _standing[i] != STANDING_STRANGER
+				if added > 0
+					if added == aware - 1
+						names += " and "
+					else
+						names += ", "
+					endif
+				endif
+				names += _actors[i].GetDisplayName()
+				added += 1
+			endif
+			i += 1
+		endWhile
+		if aware == 1
+			line += " Only " + names + " knows the player well enough to notice."
+		else
+			line += " Only " + names + " know the player well enough to notice."
+		endif
+	endif
+	SendLine(line)
 EndFunction
 
 ; ---------------------------------------------------------------------------
@@ -472,11 +729,7 @@ Event OnMantellaStarted()
 		ClearTracked()
 		_inConversation = true
 	endif
-	if _playerBand < 0
-		Actor player = Game.GetPlayer()
-		_playerBand = GetBand(player)
-		SendLine(Describe(player, _playerBand))
-	endif
+	UpdatePlayerLine()
 	RegisterForSingleUpdate(CheckInterval)
 EndEvent
 
@@ -506,10 +759,13 @@ Event OnMantellaNpcAdded(Form akForm)
 	endif
 	_actors[slot] = npc
 	_bands[slot] = -1
-	_tiers[slot] = GetTier(npc)
+	_standing[slot] = GetStanding(npc)
+	_tiers[slot] = TierFor(npc, _standing[slot])
+	StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, _standing[slot])
 	_peakLongSent[slot] = false
 	_rateAsked[slot] = false
 	CheckSlot(slot)
+	UpdatePlayerLine()
 EndEvent
 
 Event OnMantellaNpcRemoved(Form akForm)
@@ -559,7 +815,7 @@ Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	endif
 	int slot = _actors.Find(npc)
 	if slot >= 0
-		_tiers[slot] = GetTier(npc)
+		_tiers[slot] = TierFor(npc, _standing[slot])
 	endif
 EndEvent
 
@@ -632,9 +888,11 @@ Function ShiftArousal(Actor npc, float amount)
 EndFunction
 
 ; Re-reads one tracked NPC and sends a line if they just became satisfied, their
-; level changed or the peak timer ran out. Asks for a rating once they are aroused.
+; level changed or the peak timer ran out. Asks NPCs who are not strangers for a
+; rating once they are aroused; a stranger's appetite is none of the conversation's business.
 Function CheckSlot(int slot)
 	Actor npc = _actors[slot]
+	bool stranger = _standing[slot] == STANDING_STRANGER
 	string line = UpdateSatisfied(npc)
 	int band = GetBand(npc)
 	UpdatePeak(npc, band)
@@ -642,9 +900,10 @@ Function CheckSlot(int slot)
 	if line != ""
 		_bands[slot] = band
 	elseif band != _bands[slot]
+		int oldBand = _bands[slot]
 		_bands[slot] = band
-		line = DescribeNpc(npc, band, _tiers[slot])
-		if band >= 2 && GetAppetite(npc) > 0 && !IsSatisfied(npc)
+		line = DescribeNpc(npc, band, _tiers[slot], _standing[slot], oldBand)
+		if line != "" && !stranger && band >= 2 && GetAppetite(npc) > 0 && !IsSatisfied(npc)
 			line += ProgressText(npc)
 		endif
 	endif
@@ -653,7 +912,7 @@ Function CheckSlot(int slot)
 		line = peakLine
 	endif
 	SendLine(line)
-	if band >= 2 && !_rateAsked[slot] && GetAppetite(npc) <= 0
+	if !stranger && band >= 2 && !_rateAsked[slot] && GetAppetite(npc) <= 0
 		_rateAsked[slot] = true
 		SendLine(npc.GetDisplayName() + "'s sexual appetite has not been rated yet.")
 	endif
@@ -663,12 +922,14 @@ Event OnUpdate()
 	if !_inConversation
 		return
 	endif
-	Actor player = Game.GetPlayer()
-	int band = GetBand(player)
-	if band != _playerBand
-		_playerBand = band
-		SendLine(Describe(player, band))
+	; the Ended event can be missed: no running talk means it is over
+	Quest talk = Game.GetFormFromFile(0x03D41A, "Mantella.esp") as Quest
+	if talk && !talk.IsRunning()
+		_inConversation = false
+		ClearTracked()
+		return
 	endif
+	UpdatePlayerLine()
 	int i = 0
 	while i < MaxTracked
 		if _actors[i]

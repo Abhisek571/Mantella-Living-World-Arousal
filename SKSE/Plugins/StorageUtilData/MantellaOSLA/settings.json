@@ -9,8 +9,25 @@
     "int": {
         "lusty_appetite": 15
     },
+    "string": {
+        "_help_open": "open_races / open_factions / open_keywords: NPCs in these groups are forward even as strangers, but reserved while on duty. Races by name or form, factions by form, keywords by EditorID or form. A form is \"0x<FormID in its plugin>|<plugin file>\". Example: open_races [\"Succubus\"], open_factions [\"0x000D62|SomeCourtesanMod.esp\"], open_keywords [\"SomeCourtesanKeyword\"].",
+        "_help_duty": "duty_factions: members are on duty (always reserved) unless they travel with the player. Guards count without being listed."
+    },
     "stringList": {
         "forward": [],
-        "reserved": []
+        "reserved": [],
+        "open_races": [],
+        "open_factions": [],
+        "open_keywords": [],
+        "duty_factions": [
+            "0x086EEE|Skyrim.esm",
+            "0x02BE3B|Skyrim.esm",
+            "0x02BF9A|Skyrim.esm",
+            "0x02BF9B|Skyrim.esm",
+            "0x02584B|Skyrim.esm",
+            "0x0B3292|Skyrim.esm",
+            "0x039F26|Skyrim.esm",
+            "0x00C90C|Populated Lands Roads Paths.esp"
+        ]
     }
 }

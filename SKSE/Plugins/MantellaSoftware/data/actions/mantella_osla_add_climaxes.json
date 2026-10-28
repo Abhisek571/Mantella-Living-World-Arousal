@@ -12,7 +12,9 @@
             "maximum": 1000
         }
     },
-    "required": ["count"],
+    "required": [
+        "count"
+    ],
     "prompt": "If the player describes you climaxing a number of times in the story, begin your response with '{key}:'",
     "allowed_games": [
         "skyrim"
@@ -22,5 +24,6 @@
     "allow_repeat": true,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": false
+    "radiant": false,
+    "lw_gate": "close"
 }
