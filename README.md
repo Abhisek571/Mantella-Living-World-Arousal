@@ -9,7 +9,7 @@ Tells Mantella how aroused NPCs are, so they act on it in their own way. A modul
 | Appetite | Mantella rates each NPC's appetite once, from her bio. Climaxes are counted against it: satisfied sets her OSL arousal to 0, far past it she is overwhelmed and asks to rest. NPCs that are not rated yet never become satisfied or overwhelmed |
 | Climax counting | Real OStim scenes count for any NPC, in a conversation or not. The count drains over game time. Story climaxes can be added by the AddClimaxes action |
 | Closeness | Strangers keep it private; friends, lovers, followers and open groups (courtesans, succubus races) can show interest. On-duty guards and a spouse nearby keep NPCs reserved. Engaged or married (M.A.R.A.S) counts as close |
-| Actions | BecomeAroused (+10 arousal), CoolDown (-10 arousal), RateAppetite and AddClimaxes. All are only offered to NPCs close to you, and only when the Hub's "Fitting actions only" filter is on |
+| Actions | BecomeAroused (+10 arousal), CoolDown (-10 arousal), RateAppetite and AddClimaxes. They are offered only to NPCs close to you while the Hub's "Offer only fitting actions" is on (the default); with it off, to everyone |
 
 Requires:
 - [Mantella Living World - Integration Hub](https://github.com/Abhisek571/Mantella-Living-World-Hub), with its setup run once (default temperament)

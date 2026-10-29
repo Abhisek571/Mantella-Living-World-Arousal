@@ -47,6 +47,10 @@ string Property KEY_ON_DUTY = "MantellaOSLA_OnDuty" AutoReadOnly
 string Property KEY_IS_CLOSE = "MLW_IsClose" AutoReadOnly
 ; Set above 0 by the Relationships module for NPCs it counts as friend or closer.
 string Property KEY_RELATIONSHIPS_CLOSE = "MRB_Close" AutoReadOnly
+; Written for the other modules: the temperament + 1 (1 reserved, 2 bold, 3 forward); 0 or unset = not known yet.
+; They ask for a fresh value with the mod event below, so none of them has to name this script.
+string Property KEY_TIER = "MLW_Tier" AutoReadOnly
+string Property EVENT_TIER_REQUEST = "MLW_TierRequest" AutoReadOnly
 
 int Property MaxAppetite = 30 AutoReadOnly
 int Property MaxStoryClimaxes = 1000 AutoReadOnly
@@ -92,6 +96,28 @@ Function RegisterEvents()
 	RegisterForModEvent(ADVANCED_ACTION_PREFIX + ACTION_RATE, "OnRateAdvanced")
 	RegisterForModEvent(ADVANCED_ACTION_PREFIX + ACTION_CLIMAXES, "OnClimaxesAdvanced")
 	RegisterForModEvent(EVENT_OSTIM_ORGASM, "OnOStimOrgasm")
+	RegisterForModEvent(EVENT_TIER_REQUEST, "OnTierRequest")
+EndFunction
+
+; Children are never close, never rated, never aroused. Some mods clear the child flag, so the race is checked too.
+bool Function IsMinor(Actor akActor)
+	if akActor.IsChild()
+		return true
+	endif
+	Race actorRace = akActor.GetRace()
+	return actorRace && StringUtil.Find(MiscUtil.GetRaceEditorID(actorRace), "Child") >= 0
+EndFunction
+
+; Another module asks for an NPC's temperament (form pushed with the event).
+Event OnTierRequest(Form akForm)
+	Actor npc = akForm as Actor
+	if npc && npc != Game.GetPlayer()
+		PublishTier(npc, GetTier(npc))
+	endif
+EndEvent
+
+Function PublishTier(Actor akActor, int aiTier)
+	StorageUtil.SetIntValue(akActor, KEY_TIER, aiTier + 1)
 EndFunction
 
 ; Saves made before temperaments or appetite existed only have the earlier arrays.
@@ -144,7 +170,7 @@ int Function GetTier(Actor akActor)
 EndFunction
 
 int Function TierFor(Actor akActor, int aiStanding)
-	if IsOnDuty(akActor) || SpouseNearby(akActor)
+	if IsMinor(akActor) || IsOnDuty(akActor) || SpouseNearby(akActor)
 		return TIER_RESERVED
 	endif
 	; The Integration Hub's per-NPC choice (1 reserved, 2 bold, 3 forward) beats the rest.
@@ -187,7 +213,9 @@ EndFunction
 ; say, or the player's own bold/forward choice for this NPC. An open group counts
 ; only while off duty.
 int Function GetStanding(Actor akActor)
-	if StorageUtil.GetIntValue(akActor, "MLW_TemperOverride", 0) >= 2 || IsNamedForward(akActor) || IsClose(akActor)
+	if IsMinor(akActor)
+		return STANDING_STRANGER
+	elseif StorageUtil.GetIntValue(akActor, "MLW_TemperOverride", 0) >= 2 || IsNamedForward(akActor) || IsClose(akActor)
 		return STANDING_CLOSE
 	elseif IsOpen(akActor) && !IsOnDuty(akActor)
 		return STANDING_OPEN
@@ -337,6 +365,9 @@ EndFunction
 ; Friend or above (vanilla rank 1+), a follower, the Relationships module's close
 ; status, or engaged/married.
 bool Function IsClose(Actor akActor)
+	if IsMinor(akActor)
+		return false
+	endif
 	if akActor.GetRelationshipRank(Game.GetPlayer()) >= 1 || akActor.IsPlayerTeammate()
 		return true
 	endif
@@ -753,6 +784,12 @@ Event OnMantellaNpcAdded(Form akForm)
 	if _actors.Find(npc) >= 0
 		return
 	endif
+	if IsMinor(npc)
+		StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, STANDING_STRANGER)
+		PublishTier(npc, TIER_RESERVED)
+		RefreshLivingWorldNpc(npc)
+		return
+	endif
 	int slot = _actors.Find(None)
 	if slot < 0
 		return
@@ -761,6 +798,7 @@ Event OnMantellaNpcAdded(Form akForm)
 	_bands[slot] = -1
 	_standing[slot] = GetStanding(npc)
 	_tiers[slot] = TierFor(npc, _standing[slot])
+	PublishTier(npc, _tiers[slot])
 	StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, _standing[slot])
 	RefreshLivingWorldNpc(npc)
 	_peakLongSent[slot] = false
@@ -800,7 +838,7 @@ EndEvent
 ; Mantella's one-time rating of the speaker's appetite. Ignored once rated.
 Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	Actor npc = akSpeaker as Actor
-	if !npc || npc == Game.GetPlayer() || GetAppetite(npc) > 0
+	if !npc || npc == Game.GetPlayer() || GetAppetite(npc) > 0 || IsMinor(npc)
 		return
 	endif
 	int value = SKSE_HTTP.getInt(aiArguments, "appetite", 0)
@@ -817,13 +855,14 @@ Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	int slot = _actors.Find(npc)
 	if slot >= 0
 		_tiers[slot] = TierFor(npc, _standing[slot])
+		PublishTier(npc, _tiers[slot])
 	endif
 EndEvent
 
 ; Climaxes the player describes in the story.
 Event OnClimaxesAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 	Actor npc = akSpeaker as Actor
-	if !npc || npc == Game.GetPlayer()
+	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
 		return
 	endif
 	int count = SKSE_HTTP.getInt(aiArguments, "count", 0)
@@ -841,7 +880,7 @@ EndEvent
 ; Real OStim climaxes, for any NPC, in or out of a conversation.
 Event OnOStimOrgasm(string asEventName, string asSceneID, float afThreadID, Form akSender)
 	Actor npc = akSender as Actor
-	if !npc || npc == Game.GetPlayer()
+	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
 		return
 	endif
 	bool wasOver = IsOverwhelmed(npc)
@@ -879,7 +918,7 @@ EndFunction
 ; arousal is never raised by an action: the Become Aroused action is only offered to close or open NPCs, so a raise
 ; for a stranger came from a stray "Aroused:" in the text or a model that named a hidden action.
 Function ShiftArousal(Actor npc, float amount)
-	if !npc || npc == Game.GetPlayer()
+	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
 		return
 	endif
 	if amount > 0.0
