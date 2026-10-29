@@ -2,7 +2,7 @@
     "identifier": "mantella_osla_calm",
     "name": "CoolDown",
     "description": "Use when something kills the mood for the speaking NPC, such as an insult, a threat or bad news. Lowers that NPC's arousal a little.",
-    "note": "Needs OSL Aroused and Mantella Living World - Arousal. Each use removes 10 arousal (0-100) from the NPC who speaks. Off by default.",
+    "note": "Needs OSL Aroused and Mantella Living World - Arousal. Each use removes 10 arousal (0-100) from the NPC who speaks. Only offered to NPCs close to the player (as the other Arousal actions).",
     "key": "CoolDown",
     "prompt": "If something kills the mood for you, such as an insult, a threat or bad news, begin your response with '{key}:'",
     "allowed_games": [
@@ -13,5 +13,6 @@
     "allow_repeat": true,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": false
+    "radiant": false,
+    "lw_gate": "close"
 }
