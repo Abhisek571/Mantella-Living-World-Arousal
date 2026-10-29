@@ -762,6 +762,7 @@ Event OnMantellaNpcAdded(Form akForm)
 	_standing[slot] = GetStanding(npc)
 	_tiers[slot] = TierFor(npc, _standing[slot])
 	StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, _standing[slot])
+	RefreshLivingWorldNpc(npc)
 	_peakLongSent[slot] = false
 	_rateAsked[slot] = false
 	CheckSlot(slot)
@@ -865,10 +866,36 @@ Function RecheckActor(Actor npc, bool abWasOverwhelmed)
 	endif
 EndFunction
 
-; Changes the speaker's arousal and reports a level change right away instead of at the next check.
+; The Integration Hub rewrites this NPC's file for Mantella's side (how close they are), now that it is known.
+Function RefreshLivingWorldNpc(Actor npc)
+	int handle = ModEvent.Create("MLW_RefreshNpc")
+	if handle
+		ModEvent.PushForm(handle, npc)
+		ModEvent.Send(handle)
+	endif
+EndFunction
+
+; Changes the speaker's arousal and reports a level change right away instead of at the next check. A stranger's
+; arousal is never raised by an action: the Become Aroused action is only offered to close or open NPCs, so a raise
+; for a stranger came from a stray "Aroused:" in the text or a model that named a hidden action.
 Function ShiftArousal(Actor npc, float amount)
 	if !npc || npc == Game.GetPlayer()
 		return
+	endif
+	if amount > 0.0
+		int tracked = -1
+		if _actors
+			tracked = _actors.Find(npc)
+		endif
+		int standing
+		if tracked >= 0
+			standing = _standing[tracked]
+		else
+			standing = GetStanding(npc)
+		endif
+		if standing == STANDING_STRANGER
+			return
+		endif
 	endif
 	; SetArousal instead of ModifyArousal, which scales by the actor's arousal multiplier.
 	float value = OSLArousedNative.GetArousalNoSideEffects(npc) + amount
