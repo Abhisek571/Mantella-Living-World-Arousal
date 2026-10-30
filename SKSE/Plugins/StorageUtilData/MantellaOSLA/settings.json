@@ -4,20 +4,25 @@
         "peak_minutes": 5.0,
         "peak_raise": 0.2,
         "recovery_days": 1.0,
-        "overwhelm_ratio": 1.5
+        "overwhelm_ratio": 1.5,
+        "public_radius": 1024.0
     },
     "int": {
         "lusty_appetite": 15
     },
     "string": {
-        "_help_open": "open_races / open_factions / open_keywords: NPCs in these groups are forward even as strangers, but reserved while on duty. Races by name or form, factions by form, keywords by EditorID or form. A form is \"0x<FormID in its plugin>|<plugin file>\". Example: open_races [\"Succubus\"], open_factions [\"0x000D62|SomeCourtesanMod.esp\"], open_keywords [\"SomeCourtesanKeyword\"].",
-        "_help_duty": "duty_factions: members are on duty (always reserved) unless they travel with the player. Guards count without being listed."
+        "_help_open": "open_races / open_factions / open_keywords: NPCs in these groups are forward even as strangers, but reserved while on duty. Races by name or form, factions by form, keywords by EditorID or form. A form is \"0x<FormID in its plugin>|<plugin file>\". By default Dibella's priestesses (Markarth temple and inner sanctum factions) are open. Example: open_races [\"Succubus\"], open_factions [\"0x000D62|SomeCourtesanMod.esp\"], open_keywords [\"SomeCourtesanKeyword\"].",
+        "_help_duty": "duty_factions: members are on duty (always reserved) unless they travel with the player. Guards count without being listed.",
+        "_help_public": "public_radius: someone else awake within this distance in the same cell (game units, 1024 is about 15 m) makes it a public place, and everyone there is reserved. The player and the player's party do not count. 0 turns it off."
     },
     "stringList": {
         "forward": [],
         "reserved": [],
         "open_races": [],
-        "open_factions": [],
+        "open_factions": [
+            "0x0656EA|Skyrim.esm",
+            "0x0656ED|Skyrim.esm"
+        ],
         "open_keywords": [],
         "duty_factions": [
             "0x086EEE|Skyrim.esm",

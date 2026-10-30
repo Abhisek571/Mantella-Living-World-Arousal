@@ -26,8 +26,8 @@ Notes
 - Arousal is sent in bands, for the NPCs in the conversation. Your own level is sent to NPCs close to you.
 - Climaxes come from real OStim scenes (any NPC, drained over game time) and from the AddClimaxes action. Satisfied sets the NPC's OSL arousal to 0.
 - Actions BecomeAroused, CoolDown, RateAppetite and AddClimaxes are offered only to NPCs close to you while the Hub's "Offer only fitting actions" is on (the default); with it off, to everyone.
-- Temperament set with the Hub's hotkey cannot beat on-duty or spouse-nearby reserved. At peak, a forward NPC begs; with the Hub's "Never force-start a scene" off she insists.
-- Settings file: SKSE\Plugins\StorageUtilData\MantellaOSLA\settings.json. Lists: forward, reserved, open_races, open_factions, open_keywords (forms as 0xFORMID|plugin.esp), duty_factions. Numbers: lusty_appetite, overwhelm_ratio, recovery_days, peak_minutes, peak_raise. "appetite_<Name>": n under int sets one NPC's appetite.
+- Temperament set with the Hub's hotkey cannot beat on-duty, spouse-nearby or in-public reserved. At peak, a forward NPC begs; with the Hub's "Never force-start a scene" off she insists.
+- Settings file: SKSE\Plugins\StorageUtilData\MantellaOSLA\settings.json. Lists: forward, reserved, open_races, open_factions, open_keywords (forms as 0xFORMID|plugin.esp), duty_factions. Numbers: public_radius (how close a bystander makes it public, 0 = off), lusty_appetite, overwhelm_ratio, recovery_days, peak_minutes, peak_raise. "appetite_<Name>": n under int sets one NPC's appetite.
 
 Credits
 - Mantella by Art from the Machine and contributors (AGPL-3.0)

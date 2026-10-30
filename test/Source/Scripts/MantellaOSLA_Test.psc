@@ -36,7 +36,7 @@ EndFunction
 ; "tier=<0-2> standing=<0-2> isClose=<key> duty=<bool> spouse=<bool> open=<bool> rank=<n>"
 string Function Status(Actor akNpc) Global
 	MantellaOSLA_Main m = Main()
-	return "tier=" + m.GetTier(akNpc) + " standing=" + m.GetStanding(akNpc) + " isClose=" + StorageUtil.GetIntValue(akNpc, "MLW_IsClose", -1) + " duty=" + m.IsOnDuty(akNpc) + " spouse=" + m.SpouseNearby(akNpc) + " open=" + m.IsOpen(akNpc) + " rank=" + akNpc.GetRelationshipRank(Game.GetPlayer()) + " arousal=" + OSLArousedNative.GetArousalNoSideEffects(akNpc)
+	return "tier=" + m.GetTier(akNpc) + " standing=" + m.GetStanding(akNpc) + " isClose=" + StorageUtil.GetIntValue(akNpc, "MLW_IsClose", -1) + " duty=" + m.IsOnDuty(akNpc) + " spouse=" + m.SpouseNearby(akNpc) + " open=" + m.IsOpen(akNpc) + " public=" + m.InPublic(akNpc) + " rank=" + akNpc.GetRelationshipRank(Game.GetPlayer()) + " arousal=" + OSLArousedNative.GetArousalNoSideEffects(akNpc)
 EndFunction
 
 Function SetArousal(Actor akActor, float afValue) Global
@@ -87,4 +87,9 @@ Function SetOpen(Actor akNpc, bool abOn) Global
 		akNpc.RemoveFromFaction(OpenFaction())
 		JsonUtil.StringListRemove(file, "open_factions", entry)
 	endif
+EndFunction
+
+; settings public_radius (0 turns the public check off; the other tests run with it off).
+Function SetPublicRadius(float afRadius) Global
+	JsonUtil.SetFloatValue("MantellaOSLA/settings.json", "public_radius", afRadius)
 EndFunction

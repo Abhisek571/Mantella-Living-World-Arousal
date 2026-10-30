@@ -68,6 +68,8 @@ int Property STANDING_CLOSE = 1 AutoReadOnly
 int Property STANDING_OPEN = 2 AutoReadOnly
 ; How far to look for the NPC's own spouse or partner (game units, about 30 m).
 float Property SpouseRadius = 1024.0 AutoReadOnly  ; about 15 m: in earshot
+; Someone else this close, in the same cell, makes it a public place (settings "public_radius", 0 = off).
+float Property PublicRadius = 1024.0 AutoReadOnly  ; about 15 m
 
 Actor[] _actors
 int[] _bands
@@ -155,7 +157,9 @@ int Function GetBand(Actor akActor)
 EndFunction
 
 ; ---------------------------------------------------------------------------
-; Temperament. On duty, or with their own spouse nearby: reserved, always.
+; Temperament. On duty, with their own spouse nearby, or in public (someone
+; else awake within about 15 m in the same cell, the player's party left out):
+; reserved, always.
 ; Strangers are reserved and their arousal is a private mood. Open groups
 ; (settings open_races / open_factions / open_keywords) are forward even as
 ; strangers. Close NPCs (friend or above) weigh lusty (high appetite, or before
@@ -170,7 +174,7 @@ int Function GetTier(Actor akActor)
 EndFunction
 
 int Function TierFor(Actor akActor, int aiStanding)
-	if IsMinor(akActor) || IsOnDuty(akActor) || SpouseNearby(akActor)
+	if IsMinor(akActor) || IsOnDuty(akActor) || SpouseNearby(akActor) || InPublic(akActor)
 		return TIER_RESERVED
 	endif
 	; The Integration Hub's per-NPC choice (1 reserved, 2 bold, 3 forward) beats the rest.
@@ -240,6 +244,31 @@ EndFunction
 bool Function SpouseNearby(Actor akActor)
 	Actor partner = SpouseOf(akActor)
 	return partner && partner.Is3DLoaded() && partner.GetDistance(akActor) <= SpouseRadius
+EndFunction
+
+; Public: another living, awake person in the same cell within public_radius who could see them. The player and
+; the player's party do not count; other people in the conversation do.
+bool Function InPublic(Actor akActor)
+	float radius = JsonUtil.GetFloatValue(SETTINGS_FILE, "public_radius", PublicRadius)
+	if radius <= 0.0
+		return false
+	endif
+	; One native search for the people within the radius (form type 62 = placed actor), usually none to a few.
+	ObjectReference[] near = PO3_SKSEFunctions.FindAllReferencesOfFormType(akActor, 62, radius)
+	if !near || near.Length == 0
+		return false
+	endif
+	Cell here = akActor.GetParentCell()
+	Actor player = Game.GetPlayer()
+	int i = near.Length
+	while i > 0
+		i -= 1
+		Actor other = near[i] as Actor
+		if other && other != akActor && other != player && !other.IsDead() && !other.IsPlayerTeammate() 				&& other.GetSleepState() != 3 && other.GetParentCell() == here
+			return true
+		endif
+	endwhile
+	return false
 EndFunction
 
 ; The spouse's base record comes from the Spouse relationship (one native call; unmarried NPCs stop there). Cell
