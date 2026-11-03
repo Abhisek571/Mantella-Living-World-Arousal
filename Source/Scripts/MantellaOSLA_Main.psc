@@ -51,6 +51,8 @@ string Property KEY_RELATIONSHIPS_CLOSE = "MRB_Close" AutoReadOnly
 ; They ask for a fresh value with the mod event below, so none of them has to name this script.
 string Property KEY_TIER = "MLW_Tier" AutoReadOnly
 string Property EVENT_TIER_REQUEST = "MLW_TierRequest" AutoReadOnly
+; Written for the hub's setup summary: the NPCs Mantella has rated.
+string Property KEY_RATED = "MLW_RatedNPCs" AutoReadOnly
 
 int Property MaxAppetite = 30 AutoReadOnly
 int Property MaxStoryClimaxes = 1000 AutoReadOnly
@@ -878,6 +880,7 @@ Event OnRateAdvanced(Form akSpeaker, Form akConversation, int aiArguments)
 		value = MaxAppetite
 	endif
 	StorageUtil.SetIntValue(npc, KEY_APPETITE, value)
+	StorageUtil.FormListAdd(None, KEY_RATED, npc, false)
 	if !_actors
 		return
 	endif
