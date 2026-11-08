@@ -140,7 +140,7 @@ Event OnCheat(Form akNpc, string asWhat, float afValue)
 		StorageUtil.UnsetFloatValue(npc, "MantellaOSLA_CheatArousal")
 		StorageUtil.UnsetFloatValue(npc, "MantellaOSLA_CheatArousalSet")
 		if diff > 1.0 || diff < -1.0
-			Debug.Notification(npc.GetDisplayName() + ": arousal changed since the cheat, left as it is.")
+			Debug.Notification(npc.GetDisplayName() + ": arousal changed since the debug menu set it, left as it is.")
 			return
 		endif
 		OSLArousedNative.SetArousal(npc, before)
