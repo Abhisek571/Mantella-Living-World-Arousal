@@ -1,5 +1,5 @@
 Mantella Living World - Arousal
-Version 1.0.0 by itsPigeon2000
+Version 1.1.0 by itsPigeon2000
 
 Tells Mantella how aroused NPCs are, using OSL Aroused, so they act on it in their own way: reserved, bold or forward. Each NPC gets an appetite, and Mantella knows when she is satisfied or overwhelmed.
 

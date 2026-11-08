@@ -2,7 +2,7 @@
 
 Every change to Mantella Living World - Arousal. The Nexus page lists only the main changes for each version.
 
-## Unreleased
+## 1.1.0 (2026-11-09)
 
 ### New
 - Debug menu support (Integration Hub's MCM page): set an NPC's arousal and reset it to the value from before.
