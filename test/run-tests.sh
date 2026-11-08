@@ -24,8 +24,8 @@ check() {  # check <label> <text> <must match regex> [<must not match regex>]
 }
 talk() {  # talk <actor json> [<second actor json>]: fresh fake conversation, returns the event log
   t Finish >/dev/null; sleep 1; t Begin >/dev/null; sleep 1
-  t Join "[$1]" >/dev/null; sleep 2
-  [ -n "${2:-}" ] && { t Join "[$2]" >/dev/null; sleep 2; }
+  t Join "[$1]" >/dev/null; sleep 5
+  [ -n "${2:-}" ] && { t Join "[$2]" >/dev/null; sleep 5; }
   t Log
 }
 reset() {  # reset <actor json>: no override, duty judged, unrated, not open
