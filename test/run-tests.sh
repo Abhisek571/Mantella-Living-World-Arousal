@@ -120,10 +120,10 @@ note "10/11 BecomeAroused raises a friend only after the player allowed intimacy
 t SetRank "[$SF,1]" >/dev/null; t SetIntimate "[$SF,0]" >/dev/null; t SetArousal "[$SF,30.0]" >/dev/null
 talk "$SF" >/dev/null
 t Arouse "[$SF]" >/dev/null; sleep 2
-check "friend without the allow: no raise" "$(t Status "[$SF]")" 'arousal=(29|30)\.'
+check "friend without the allow: no raise" "$(t Status "[$SF]")" 'arousal=(2[89]|3[0-2])\.'  # OSL keeps moving it toward the baseline during the talk
 t SetIntimate "[$SF,1]" >/dev/null
 t Arouse "[$SF]" >/dev/null; sleep 2
-check "friend with the allow: raised" "$(t Status "[$SF]")" 'arousal=(39|40)\.'
+check "friend with the allow: raised" "$(t Status "[$SF]")" 'arousal=(3[89]|4[0-2])\.'
 t SetIntimate "[$SF,0]" >/dev/null
 
 if [ -n "$C" ]; then

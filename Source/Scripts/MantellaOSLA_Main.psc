@@ -126,9 +126,9 @@ Event OnCheat(Form akNpc, string asWhat, float afValue)
 	endif
 	if asWhat == "arousal"
 		if !StorageUtil.HasFloatValue(npc, "MantellaOSLA_CheatArousal")
-			StorageUtil.SetFloatValue(npc, "MantellaOSLA_CheatArousal", OSLArousedNative.GetArousalNoSideEffects(npc))
+			StorageUtil.SetFloatValue(npc, "MantellaOSLA_CheatArousal", OSLArousedNative.GetArousal(npc))
 		endif
-		OSLArousedNative.SetArousal(npc, afValue)
+		SetArousalNow(npc, afValue)
 		StorageUtil.SetFloatValue(npc, "MantellaOSLA_CheatArousalSet", afValue)
 	elseif asWhat == "reset"
 		if !StorageUtil.HasFloatValue(npc, "MantellaOSLA_CheatArousal")
@@ -143,7 +143,7 @@ Event OnCheat(Form akNpc, string asWhat, float afValue)
 			Debug.Notification(npc.GetDisplayName() + ": arousal changed since the debug menu set it, left as it is.")
 			return
 		endif
-		OSLArousedNative.SetArousal(npc, before)
+		SetArousalNow(npc, before)
 	else
 		return
 	endif
@@ -682,7 +682,7 @@ string Function UpdateSatisfied(Actor akActor)
 	string line = ""
 	if count >= need && !was
 		StorageUtil.SetIntValue(akActor, KEY_SATISFIED, 1)
-		OSLArousedNative.SetArousal(akActor, 0.0)
+		SetArousalNow(akActor, 0.0)
 		StorageUtil.UnsetFloatValue(akActor, KEY_PEAK_SINCE)
 		StorageUtil.UnsetIntValue(akActor, KEY_PEAK_RAISES)
 		line = akActor.GetDisplayName() + " is completely satisfied for now."
@@ -1169,6 +1169,14 @@ EndFunction
 ; who passes the "intimate" gate has their arousal raised by an action: the Become Aroused action is only offered to
 ; them, so any other raise came from a stray "Aroused:" in the text or a model that named a hidden action (and with
 ; the Hub's action filter off, nothing else stops it).
+; OSL Aroused's OSL mode does not reset its "last checked" time on SetArousal, so the next read moves the new value
+; toward the baseline for all the time since the last check again (and away from it, without limit, if the game clock
+; was set back). GetArousal (with side effects) first stores the value for right now, so the set value is what is read.
+Function SetArousalNow(Actor akActor, float afValue)
+	OSLArousedNative.GetArousal(akActor)
+	OSLArousedNative.SetArousal(akActor, afValue)
+EndFunction
+
 Function ShiftArousal(Actor npc, float amount)
 	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
 		return
@@ -1177,7 +1185,7 @@ Function ShiftArousal(Actor npc, float amount)
 		return
 	endif
 	; SetArousal instead of ModifyArousal, which scales by the actor's arousal multiplier.
-	float value = OSLArousedNative.GetArousalNoSideEffects(npc) + amount
+	float value = OSLArousedNative.GetArousal(npc) + amount  ; GetArousal also brings OSL's stored value up to now
 	if value > 100.0
 		value = 100.0
 	elseif value < 0.0

@@ -40,6 +40,7 @@ string Function Status(Actor akNpc) Global
 EndFunction
 
 Function SetArousal(Actor akActor, float afValue) Global
+	OSLArousedNative.GetArousal(akActor)  ; store the value for now first, see MantellaOSLA_Main.SetArousalNow
 	OSLArousedNative.SetArousal(akActor, afValue)
 EndFunction
 
