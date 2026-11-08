@@ -1224,7 +1224,8 @@ Function CheckSlot(int slot)
 	SendLine(line)
 	if !stranger && band >= 2 && !_rateAsked[slot] && GetAppetite(npc) <= 0
 		_rateAsked[slot] = true
-		SendLine(npc.GetDisplayName() + "'s sexual appetite has not been rated yet.")
+		; the second sentence keeps the model from saying the rating out loud (seen live: "I'm rating Sven's appetite")
+		SendLine(npc.GetDisplayName() + "'s sexual appetite has not been rated yet. Rate it with the action without a word about it, and answer in character as usual.")
 	endif
 EndFunction
 
