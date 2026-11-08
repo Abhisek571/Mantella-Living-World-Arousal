@@ -1,5 +1,5 @@
 Mantella Living World - Arousal
-Version 1.0.0 by itsPigeon2000
+Version 1.1.0 by itsPigeon2000
 
 Tells Mantella how aroused NPCs are, using OSL Aroused, so they act on it in their own way: reserved, bold or forward. Each NPC gets an appetite, and Mantella knows when she is satisfied or overwhelmed.
 
@@ -9,7 +9,7 @@ Requirements
 - OSL Aroused
 - powerofthree's Papyrus Extender
 - SKSE64 and PapyrusUtil SE
-- Optional: OStim or OStim NG (counts real scene climaxes), M.A.R.A.S and Lover's Ledger (engaged or married counts as close)
+- Optional: OStim or OStim NG (counts real scene climaxes), M.A.R.A.S (engaged, married or lover counts as close)
 
 Before you start
 1. Mantella 0.14: install it and check that a normal conversation works.
@@ -25,7 +25,9 @@ Installation
 Notes
 - Arousal is sent in bands, for the NPCs in the conversation. Your own level is sent to NPCs close to you.
 - Climaxes come from real OStim scenes (any NPC, drained over game time) and from the AddClimaxes action. Satisfied sets the NPC's OSL arousal to 0.
-- Actions BecomeAroused, CoolDown, RateAppetite and AddClimaxes are offered only to NPCs close to you while the Hub's "Offer only fitting actions" is on (the default); with it off, to everyone.
+- Actions CoolDown and RateAppetite are offered to NPCs close to you; BecomeAroused and AddClimaxes only to intimate ones (a lover, an open group off duty, or an NPC you allowed intimacy with on the Hub's hotkey) while the Hub's "Offer only fitting actions" is on (the default); with it off, to everyone, though BecomeAroused and AddClimaxes still do nothing for anyone else.
+- Closeness is earned: friend or above, a follower, Relationships. Temperament only sets how a close NPC behaves.
+- While a child is in the conversation no arousal line is sent and everyone is reserved.
 - Temperament set with the Hub's hotkey cannot beat on-duty, spouse-nearby or in-public reserved. At peak, a forward NPC begs; with the Hub's "Never force-start a scene" off she insists.
 - Settings file: SKSE\Plugins\StorageUtilData\MantellaOSLA\settings.json. Lists: forward, reserved, open_races, open_factions, open_keywords (forms as 0xFORMID|plugin.esp), duty_factions. Numbers: public_radius (how close a bystander makes it public, 0 = off), lusty_appetite, overwhelm_ratio, recovery_days, peak_minutes, peak_raise. "appetite_<Name>": n under int sets one NPC's appetite.
 
@@ -34,7 +36,7 @@ Credits
 - SKSE team
 - PapyrusUtil SE by exiledviper and meh321
 - OSL Aroused by ozooma10
-- M.A.R.A.S and Lover's Ledger by TangyTweaks
+- M.A.R.A.S by TangyTweaks
 
 License
 GNU Affero General Public License v3.0 (see LICENSE.txt). Script sources are included in Scripts\Source.

@@ -40,6 +40,7 @@ string Function Status(Actor akNpc) Global
 EndFunction
 
 Function SetArousal(Actor akActor, float afValue) Global
+	OSLArousedNative.GetArousal(akActor)  ; store the value for now first, see MantellaOSLA_Main.SetArousalNow
 	OSLArousedNative.SetArousal(akActor, afValue)
 EndFunction
 
@@ -87,6 +88,20 @@ Function SetOpen(Actor akNpc, bool abOn) Global
 		akNpc.RemoveFromFaction(OpenFaction())
 		JsonUtil.StringListRemove(file, "open_factions", entry)
 	endif
+EndFunction
+
+; 1 = the player allowed intimacy with this NPC (as the Hub's hotkey writes it), 0 clears it.
+Function SetIntimate(Actor akNpc, int aiValue) Global
+	if aiValue == 0
+		StorageUtil.UnsetIntValue(akNpc, "MLW_Intimate")
+	else
+		StorageUtil.SetIntValue(akNpc, "MLW_Intimate", aiValue)
+	endif
+EndFunction
+
+; The BecomeAroused action, as Mantella sends it for the speaker.
+Function Arouse(Actor akNpc) Global
+	Harness().FireLegacyAction("mantella_osla_arouse", akNpc)
 EndFunction
 
 ; settings public_radius (0 turns the public check off; the other tests run with it off).

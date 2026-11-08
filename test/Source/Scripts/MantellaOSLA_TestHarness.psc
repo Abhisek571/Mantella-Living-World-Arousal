@@ -123,5 +123,6 @@ float Function GetArousal(Actor a)
 EndFunction
 
 float Function SetArousal(Actor a, float v)
+	OSLArousedNative.GetArousal(a)  ; store the value for now first, see MantellaOSLA_Main.SetArousalNow
 	return OSLArousedNative.SetArousal(a, v)
 EndFunction
