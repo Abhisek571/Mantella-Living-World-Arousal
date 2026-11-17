@@ -2,6 +2,17 @@
 
 Every change to Mantella Living World - Arousal. The Nexus page lists only the main changes for each version.
 
+## Unreleased
+
+### Changed
+- The Become Aroused and climax actions follow the Integration Hub's Intimacy setting and each NPC's choice when the Hub is installed: NPC decides lets every adult use them, Intimacy: never shuts them, Always willing and an absolute command open them. Lovers only, or no Hub, keeps the old check. Children never get them.
+- Shorter descriptions for all four actions (less text sent to the model on every reply; same rules).
+
+### Fixed
+- The appetite rating and the other silent actions now say plainly that nothing about them may be spoken (an NPC said "I'm rating her appetite quietly" aloud).
+- People from a talk whose end was missed no longer get arousal lines in the next talk, and a child left over from it no longer mutes every line.
+- The duty and open faction lists are read once instead of on every check; the Integration Hub is asked to update an NPC only when the standing changed.
+
 ## 1.1.0 (2026-11-09)
 
 ### New

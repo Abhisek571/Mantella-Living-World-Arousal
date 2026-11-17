@@ -1,13 +1,13 @@
 {
     "identifier": "mantella_osla_rate_appetite",
     "name": "RateAppetite",
-    "description": "Use once, only when told that the speaking NPC's own sexual appetite has not been rated yet. Rate it from their personality, background and nature: how many climaxes in one session it takes to satisfy them. Keep talking normally; do not mention the rating.",
+    "description": "Once, when told the speaking NPC's sexual appetite is not rated yet: rate it from their nature. Silent: the rating exists only as this action's number. Never say, hint at or describe it, or that you rate anything; the spoken reply goes on with the talk as if no rating happened.",
     "note": "Needs OSL Aroused, Mantella Living World - Arousal and Mantella's Advanced Actions on (tool calling). Stored on the NPC and never asked again. Only offered to NPCs close to the player.",
     "key": "RateAppetite",
     "parameters": {
         "appetite": {
             "type": "integer",
-            "description": "Climaxes in one session needed to satisfy the speaking NPC. 1-3: easily satisfied or not very interested in sex. 4-8: an ordinary healthy appetite. 9-15: very lustful. 16-30: practically insatiable, for example a succubus or someone defined by lust.",
+            "description": "Climaxes in one session that satisfy them: 1-3 low, 4-8 ordinary, 9-15 very lustful, 16-30 insatiable (a succubus).",
             "minimum": 1,
             "maximum": 30
         }

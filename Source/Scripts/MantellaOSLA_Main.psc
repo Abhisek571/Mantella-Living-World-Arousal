@@ -48,8 +48,10 @@ string Property KEY_IS_CLOSE = "MLW_IsClose" AutoReadOnly
 ; Set above 0 by the Relationships module for NPCs it counts as friend or closer.
 string Property KEY_RELATIONSHIPS_CLOSE = "MRB_Close" AutoReadOnly
 string Property RELATIONSHIPS_PLUGIN = "Mantella Living World - Relationships.esp" AutoReadOnly
-; 1 = the player allowed intimacy with this NPC (the Hub's hotkey). Close alone never does.
+; 1 = Always willing: the player's choice for this NPC on the Hub's hotkey. Close alone never does.
 string Property KEY_INTIMATE = "MLW_Intimate" AutoReadOnly
+; The Hub's Characters page flags ("<name>|<flag>" = 1), written by its side in Mantella.
+string Property HUB_FLAGS = "MantellaLivingWorld/npc_flags.json" AutoReadOnly
 ; Written for the other modules: the temperament + 1 (1 reserved, 2 bold, 3 forward); 0 or unset = not known yet.
 ; They ask for a fresh value with the mod event below, so none of them has to name this script.
 string Property KEY_TIER = "MLW_Tier" AutoReadOnly
@@ -456,15 +458,51 @@ bool Function IsOpen(Actor akActor)
 EndFunction
 
 bool Function InListedFaction(Actor akActor, string asList)
-	int i = JsonUtil.StringListCount(SETTINGS_FILE, asList)
+	Form[] facs = ListedFactions(asList)
+	int i = facs.Length
 	while i > 0
 		i -= 1
-		Faction fac = ResolveForm(JsonUtil.StringListGet(SETTINGS_FILE, asList, i)) as Faction
-		if fac && akActor.IsInFaction(fac)
+		if facs[i] && akActor.IsInFaction(facs[i] as Faction)
 			return true
 		endif
 	endWhile
 	return false
+EndFunction
+
+; The factions of a settings list, resolved once and again only when the list's text changes (resolving asks the game
+; for each plugin and form, many calls per entry).
+string _dutySig = "-"
+Form[] _dutyFacs
+string _openSig = "-"
+Form[] _openFacs
+
+Form[] Function ListedFactions(string asList)
+	int count = JsonUtil.StringListCount(SETTINGS_FILE, asList)
+	string sig = count + ":"
+	int i = 0
+	while i < count
+		sig += JsonUtil.StringListGet(SETTINGS_FILE, asList, i) + ";"
+		i += 1
+	endWhile
+	if asList == "duty_factions" && sig == _dutySig && _dutyFacs
+		return _dutyFacs
+	elseif asList == "open_factions" && sig == _openSig && _openFacs
+		return _openFacs
+	endif
+	Form[] facs = Utility.CreateFormArray(count)
+	i = 0
+	while i < count && i < 128
+		facs[i] = ResolveForm(JsonUtil.StringListGet(SETTINGS_FILE, asList, i)) as Faction
+		i += 1
+	endWhile
+	if asList == "duty_factions"
+		_dutySig = sig
+		_dutyFacs = facs
+	elseif asList == "open_factions"
+		_openSig = sig
+		_openFacs = facs
+	endif
+	return facs
 EndFunction
 
 ; "0x00C90C|Some Mod.esp" (the plugin's own FormID, written the way PapyrusUtil
@@ -539,12 +577,17 @@ bool Function RelationshipsLoaded()
 	return Game.GetModByName(RELATIONSHIPS_PLUGIN) != 255 || Game.GetLightModByName(RELATIONSHIPS_PLUGIN) != 65535
 EndFunction
 
-; The same test as the Hub's "intimate" action gate: a lover (vanilla Lover rank, M.A.R.A.S engaged, married or
-; lover, the Relationships module's dating or closer), an open group off duty, or the player's own "Allow intimacy"
-; choice for this NPC (StorageUtil MLW_Intimate = 1, set with the Hub's hotkey). Never a child.
+; The same test as the Hub's "intimate" action gate. With the Integration Hub its Intimacy setting and per-NPC choice
+; decide first (HubIntimacy). Otherwise, or on the Hub's Lovers only with no choice for this NPC: a lover (vanilla Lover
+; rank, M.A.R.A.S engaged, married or lover, the Relationships module's dating or closer), an open group off duty, or
+; the player's own "Always willing" for this NPC (StorageUtil MLW_Intimate = 1, set with the Hub's hotkey). Never a child.
 bool Function AllowsIntimacy(Actor akActor)
 	if IsMinor(akActor)
 		return false
+	endif
+	int hub = HubIntimacy(akActor)
+	if hub >= 0
+		return hub == 1
 	endif
 	if StorageUtil.GetIntValue(akActor, KEY_INTIMATE, 0) == 1 || IsIntimate(akActor)
 		return true
@@ -553,6 +596,32 @@ bool Function AllowsIntimacy(Actor akActor)
 		return true
 	endif
 	return IsOpen(akActor) && !IsOnDuty(akActor)
+EndFunction
+
+; The Integration Hub's say, read without naming any Hub script so this module needs no Hub: its Intimacy setting
+; (global MLW_IntimacyCheck: 0 Lovers only, 1 or an older 2 NPC decides), its Characters page flags (npc_flags.json)
+; and the hotkey's Always willing (MLW_Intimate). 0 no: Intimacy: never, which nothing overrides. 1 yes: Always willing,
+; an absolute command in force (as the Hub's IntimateValue), or NPC decides (they say yes or no in the talk).
+; -1 the Hub does not decide: no Hub, or Lovers only with no choice for this NPC. The caller rules out children first.
+int Function HubIntimacy(Actor akActor)
+	GlobalVariable mode = Game.GetFormFromFile(0x00080E, HUB_PLUGIN) as GlobalVariable
+	if !mode
+		return -1
+	endif
+	string name = akActor.GetDisplayName()
+	if JsonUtil.GetIntValue(HUB_FLAGS, name + "|never_intimate", 0) == 1
+		return 0
+	endif
+	if StorageUtil.GetIntValue(akActor, KEY_INTIMATE, 0) == 1 || JsonUtil.GetIntValue(HUB_FLAGS, name + "|bypass_intimacy", 0) == 1
+		return 1
+	endif
+	if StorageUtil.GetFloatValue(akActor, "MLW_CommandUntil", 0.0) > Utility.GetCurrentGameTime() && JsonUtil.GetIntValue(HUB_FLAGS, name + "|ignore_commands", 0) != 1
+		return 1
+	endif
+	if mode.GetValueInt() != 0
+		return 1
+	endif
+	return -1
 EndFunction
 
 ; Vanilla Lover rank, or M.A.R.A.S engaged, married or lover.
@@ -836,12 +905,14 @@ string Function PrivateMood(Actor akActor, int band, int aiOldBand)
 	return ""
 EndFunction
 
-; An NPC's level, phrased by temperament; strangers get a private mood.
+; An NPC's level, phrased by temperament. A stranger (not close, not in an open group) gets no line: a private mood
+; sent to every stranger read as the same template for several people in a row (live test), and it is none of the
+; talk's business. PrivateMood is kept for a later, rarer use.
 string Function DescribeNpc(Actor akActor, int band, int tier, int aiStanding, int aiOldBand)
 	string name = akActor.GetDisplayName()
 	string p = Pronoun(akActor)
 	if aiStanding == STANDING_STRANGER && !IsSatisfied(akActor)
-		return PrivateMood(akActor, band, aiOldBand)
+		return ""
 	elseif band == 0
 		return name + " seems calm."
 	elseif band == 1
@@ -969,6 +1040,9 @@ EndFunction
 ; ---------------------------------------------------------------------------
 
 Event OnMantellaStarted()
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main,OnMantellaStarted_start,\n", true, false)
+	EndIf
 	; Saves made before the actions existed only registered the conversation events in OnInit.
 	RegisterEvents()
 	AllocateTracked()
@@ -978,6 +1052,9 @@ Event OnMantellaStarted()
 	endif
 	UpdatePlayerLine()
 	RegisterForSingleUpdate(CheckInterval)
+	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main,OnMantellaStarted_end,\n", true, false)
+	EndIf
 EndEvent
 
 Event OnMantellaEnded()
@@ -996,6 +1073,8 @@ Event OnMantellaNpcAdded(Form akForm)
 		ClearTracked()
 		_inConversation = true
 		RegisterForSingleUpdate(CheckInterval)
+	else
+		DropLeftovers()  ; an earlier talk whose Ended never came: its people and children are not in this one
 	endif
 	if _actors.Find(npc) >= 0
 		return
@@ -1011,9 +1090,12 @@ Event OnMantellaNpcAdded(Form akForm)
 				OnMinorJoined()
 			endif
 		endif
+		bool minorChanged = StorageUtil.GetIntValue(npc, KEY_IS_CLOSE, -99) != STANDING_STRANGER
 		StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, STANDING_STRANGER)
 		PublishTier(npc, TIER_RESERVED)
-		RefreshLivingWorldNpc(npc)
+		if minorChanged  ; the Hub rewrites the file only when what it reads from here changed
+			RefreshLivingWorldNpc(npc)
+		endif
 		return
 	endif
 	int slot = _actors.Find(None)
@@ -1028,13 +1110,44 @@ Event OnMantellaNpcAdded(Form akForm)
 	_standing[slot] = GetStanding(npc)
 	_tiers[slot] = TierFor(npc, _standing[slot])
 	PublishTier(npc, _tiers[slot])
+	bool changed = StorageUtil.GetIntValue(npc, KEY_IS_CLOSE, -99) != _standing[slot]
 	StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, _standing[slot])
-	RefreshLivingWorldNpc(npc)
+	if changed  ; the Hub rewrites the file only when what it reads from here changed
+		RefreshLivingWorldNpc(npc)
+	endif
 	_peakLongSent[slot] = false
 	_rateAsked[slot] = false
 	CheckSlot(slot)
 	UpdatePlayerLine()
 EndEvent
+
+; Slots and children of actors no longer in Mantella's running talk.
+Function DropLeftovers()
+	; Mantella puts everyone in its running talk in this faction and takes them out when it ends
+	Faction talk = Game.GetFormFromFile(0x06FE24, "Mantella.esp") as Faction  ; MantellaConversationParticipantsFaction
+	if !talk
+		return
+	endif
+	int i = _actors.Length
+	while i > 0
+		i -= 1
+		if _actors[i] && !_actors[i].IsInFaction(talk)
+			_actors[i] = None
+			_bands[i] = -1
+		endif
+	endWhile
+	bool hadMinor = MinorInTalk()
+	i = _minors.Length
+	while i > 0
+		i -= 1
+		if _minors[i] && !_minors[i].IsInFaction(talk)
+			_minors[i] = None
+		endif
+	endWhile
+	if hadMinor && !MinorInTalk()
+		OnLastMinorLeft()
+	endif
+EndFunction
 
 Event OnMantellaNpcRemoved(Form akForm)
 	Actor npc = akForm as Actor
@@ -1232,8 +1345,9 @@ Function CheckSlot(int slot)
 	SendLine(line)
 	if !stranger && band >= 2 && !_rateAsked[slot] && GetAppetite(npc) <= 0
 		_rateAsked[slot] = true
-		; the second sentence keeps the model from saying the rating out loud (seen live: "I'm rating Sven's appetite")
-		SendLine(npc.GetDisplayName() + "'s sexual appetite has not been rated yet. Rate it with the action without a word about it, and answer in character as usual.")
+		; the rating may only be the action's number: seen live, "I'm rating Sven's appetite" and "I'm rating her appetite
+		; quietly as a succubus, very high." were spoken with the call; say what must not be spoken and that the talk goes on
+		SendLine(npc.GetDisplayName() + "'s sexual appetite has not been rated yet. Give the rating only as the number in the RateAppetite action: never say, hint at or describe it, or mention this note; the spoken reply goes on with the talk exactly as it would without it.")
 	endif
 EndFunction
 
