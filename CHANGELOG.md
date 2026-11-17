@@ -9,6 +9,7 @@ Every change to Mantella Living World - Arousal. The Nexus page lists only the m
 - Shorter descriptions for all four actions (less text sent to the model on every reply; same rules).
 
 ### Fixed
+- A stranger's satisfied or overwhelmed state is never sent to the talk.
 - The appetite rating and the other silent actions now say plainly that nothing about them may be spoken (an NPC said "I'm rating her appetite quietly" aloud).
 - People from a talk whose end was missed no longer get arousal lines in the next talk, and a child left over from it no longer mutes every line.
 - The duty and open faction lists are read once instead of on every check; the Integration Hub is asked to update an NPC only when the standing changed.

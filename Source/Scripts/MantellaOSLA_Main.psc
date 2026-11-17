@@ -911,7 +911,7 @@ EndFunction
 string Function DescribeNpc(Actor akActor, int band, int tier, int aiStanding, int aiOldBand)
 	string name = akActor.GetDisplayName()
 	string p = Pronoun(akActor)
-	if aiStanding == STANDING_STRANGER && !IsSatisfied(akActor)
+	if aiStanding == STANDING_STRANGER  ; satisfied or not: a stranger's sexual state is none of the talk's business
 		return ""
 	elseif band == 0
 		return name + " seems calm."
@@ -1261,7 +1261,7 @@ Function RecheckActor(Actor npc, bool abWasOverwhelmed)
 	endif
 	if slot >= 0
 		CheckSlot(slot)
-		if abWasOverwhelmed && IsOverwhelmed(npc)
+		if abWasOverwhelmed && IsOverwhelmed(npc) && _standing[slot] != STANDING_STRANGER
 			SendLine(npc.GetDisplayName() + " climaxed again past " + Objective(npc) + " limit and begs the player even harder to let " + Objective(npc) + " rest.")
 		endif
 	else
@@ -1321,6 +1321,9 @@ Function CheckSlot(int slot)
 	Actor npc = _actors[slot]
 	bool stranger = _standing[slot] == STANDING_STRANGER
 	string line = UpdateSatisfied(npc)
+	if stranger  ; the satisfied flag is kept up, but a stranger's satisfied or overwhelmed line is never sent
+		line = ""
+	endif
 	int band = GetBand(npc)
 	UpdatePeak(npc, band)
 	ApplyPeakRaises(npc)
