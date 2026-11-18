@@ -1,7 +1,7 @@
 {
     "identifier": "mantella_osla_arouse",
     "name": "BecomeAroused",
-    "description": "Use when the conversation turns flirtatious, romantic or erotic and it genuinely excites the speaking NPC. Raises that NPC's arousal a little. Do not use for ordinary friendly talk.",
+    "description": "The talk turns flirtatious, romantic or erotic and it really excites the speaking NPC: their arousal rises a little. Not for friendly talk. Silent: never say or narrate this action or any level; just speak as you would.",
     "note": "Needs OSL Aroused and Mantella Living World - Arousal. Each use adds 10 arousal (0-100) to the NPC who speaks. Only offered to the player's lovers, an open group off duty, or NPCs the player allowed intimacy with (the Hub's hotkey); a friend alone is not enough.",
     "key": "Aroused",
     "prompt": "If the conversation turns flirtatious, romantic or erotic and it genuinely excites you, begin your response with '{key}:'",

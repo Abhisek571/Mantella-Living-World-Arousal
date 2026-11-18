@@ -79,6 +79,7 @@ EndFunction
 Function SetOpen(Actor akNpc, bool abOn) Global
 	string file = "MantellaOSLA/settings.json"
 	string entry = "0x000801|MantellaOSLA_TEST.esp"
+	SaveSettings()
 	if abOn
 		akNpc.AddToFaction(OpenFaction())
 		if !JsonUtil.StringListHas(file, "open_factions", entry)
@@ -106,5 +107,49 @@ EndFunction
 
 ; settings public_radius (0 turns the public check off; the other tests run with it off).
 Function SetPublicRadius(float afRadius) Global
+	SaveSettings()
 	JsonUtil.SetFloatValue("MantellaOSLA/settings.json", "public_radius", afRadius)
+EndFunction
+
+; Remembers the player's public_radius and whether open_factions listed the test faction, before a test changes them.
+; Kept until RestoreSettings, so a run that stopped early is put back by the next run's cleanup.
+Function SaveSettings() Global
+	if StorageUtil.GetIntValue(None, "MantellaOSLA_Test_Saved", 0) == 1
+		return
+	endif
+	string file = "MantellaOSLA/settings.json"
+	StorageUtil.SetIntValue(None, "MantellaOSLA_Test_HadRadius", JsonUtil.HasFloatValue(file, "public_radius") as int)
+	StorageUtil.SetFloatValue(None, "MantellaOSLA_Test_Radius", JsonUtil.GetFloatValue(file, "public_radius"))
+	StorageUtil.SetIntValue(None, "MantellaOSLA_Test_HadOpen", JsonUtil.StringListHas(file, "open_factions", "0x000801|MantellaOSLA_TEST.esp") as int)
+	StorageUtil.SetIntValue(None, "MantellaOSLA_Test_Saved", 1)
+EndFunction
+
+; Puts back what SaveSettings remembered.
+Function RestoreSettings() Global
+	if StorageUtil.GetIntValue(None, "MantellaOSLA_Test_Saved", 0) != 1
+		return
+	endif
+	string file = "MantellaOSLA/settings.json"
+	string entry = "0x000801|MantellaOSLA_TEST.esp"
+	if StorageUtil.GetIntValue(None, "MantellaOSLA_Test_HadRadius", 0) == 1
+		JsonUtil.SetFloatValue(file, "public_radius", StorageUtil.GetFloatValue(None, "MantellaOSLA_Test_Radius"))
+	else
+		JsonUtil.UnsetFloatValue(file, "public_radius")
+	endif
+	if StorageUtil.GetIntValue(None, "MantellaOSLA_Test_HadOpen", 0) == 1
+		if !JsonUtil.StringListHas(file, "open_factions", entry)
+			JsonUtil.StringListAdd(file, "open_factions", entry)
+		endif
+	else
+		JsonUtil.StringListRemove(file, "open_factions", entry)
+	endif
+	StorageUtil.UnsetIntValue(None, "MantellaOSLA_Test_HadRadius")
+	StorageUtil.UnsetFloatValue(None, "MantellaOSLA_Test_Radius")
+	StorageUtil.UnsetIntValue(None, "MantellaOSLA_Test_HadOpen")
+	StorageUtil.UnsetIntValue(None, "MantellaOSLA_Test_Saved")
+EndFunction
+
+; Forgets that the NPC's spouse was not found, so the next check searches the loaded actors again.
+Function ForgetSpouseMiss(Actor akNpc) Global
+	StorageUtil.UnsetFloatValue(akNpc, "MantellaOSLA_SpouseMiss")
 EndFunction

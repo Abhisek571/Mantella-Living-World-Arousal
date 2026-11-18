@@ -37,6 +37,7 @@ rank_of() { t Status "[$1]" | grep -oE 'rank=-?[0-9]+' | cut -d= -f2; }
 con "set GameHour to 12"
 RS=$(rank_of "$SF"); RM=$(rank_of "$MF")
 echo "saved ranks: stranger=$RS married=$RM"
+t SaveSettings >/dev/null   # public_radius and open_factions are put back at the end
 reset "$SF"; reset "$MF"
 t SetArousal "[$P,90.0]" >/dev/null   # the player is intensely aroused throughout
 t SetPublicRadius "[0.0]" >/dev/null   # tests 1-6 ignore bystanders; test 7 checks them
@@ -76,6 +77,7 @@ note "5/11 spouse nearby: forward override, still reserved"
 con "player.moveto ${M#0x}"; sleep 2
 call ObjectReference MoveTo "[$MF,80.0,0.0,0.0,true]" "{\"form\":\"$W\"}" >/dev/null; sleep 2   # the console form "<ref>.moveto" does nothing over DevBench
 t SetOverride "[$MF,3]" >/dev/null
+t ForgetSpouseMiss "[$MF]" >/dev/null   # a miss from an earlier talk (spouse not loaded then) is kept for a game hour
 t Status "[$MF]" >/dev/null; sleep 6   # the first look-up of a partner scans every loaded actor (slow, once)
 check "spouse nearby reserved (the override alone makes no one close)" "$(t Status "[$MF]")" 'tier=0 standing=0 .*spouse=true'
 t SetOverride "[$MF,0]" >/dev/null
@@ -136,9 +138,9 @@ if [ -n "$C" ]; then
 fi
 
 note "cleanup"
-t SetPublicRadius "[1024.0]" >/dev/null
 t Finish >/dev/null
 reset "$SF"; reset "$MF"
+t RestoreSettings >/dev/null   # the public_radius and open_factions from before the run
 t SetRank "[$SF,${RS:-0}]" >/dev/null; t SetRank "[$MF,${RM:-0}]" >/dev/null
 t SetArousal "[$SF,0.0]" >/dev/null; t SetArousal "[$MF,0.0]" >/dev/null; t SetArousal "[$P,0.0]" >/dev/null
 note "tests finished: $PASS passed, $FAIL failed"

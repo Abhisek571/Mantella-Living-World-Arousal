@@ -1,13 +1,13 @@
 {
     "identifier": "mantella_osla_add_climaxes",
     "name": "AddClimaxes",
-    "description": "Use when the player describes, as part of the story, the speaking NPC climaxing a number of times that was not an actual in-game scene, for example 'we went at it for four days and you came a hundred times'. Pass how many times. Do not use for climaxes that just happened in the current scene; those are counted already.",
+    "description": "Count climaxes of the speaking NPC that the player tells as part of the story, not an in-game scene (those are counted already). Silent: never mention the count or that anything is counted.",
     "note": "Needs OSL Aroused, Mantella Living World - Arousal and Mantella's Advanced Actions on (tool calling). Adds to the NPC's climax count toward being satisfied. Only offered to the player's lovers, an open group off duty, or NPCs the player allowed intimacy with (the Hub's hotkey); a friend alone is not enough.",
     "key": "AddClimaxes",
     "parameters": {
         "count": {
             "type": "integer",
-            "description": "How many times the speaking NPC climaxed in what the player described. Use the player's number if given; otherwise estimate from what was described.",
+            "description": "How many: the player's number, else an estimate.",
             "minimum": 1,
             "maximum": 1000
         }
