@@ -2,7 +2,7 @@
 
 Every change to Mantella Living World - Arousal. The Nexus page lists only the main changes for each version.
 
-## Unreleased
+## 1.1.1 (2026-11-18)
 
 ### Changed
 - The Become Aroused and climax actions follow the Integration Hub's Intimacy setting and each NPC's choice when the Hub is installed: NPC decides lets every adult use them, Intimacy: never shuts them, Always willing and an absolute command open them. Lovers only, or no Hub, keeps the old check. Children never get them.
