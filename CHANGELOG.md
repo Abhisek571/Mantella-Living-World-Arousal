@@ -7,12 +7,18 @@ Every change to Mantella Living World - Arousal. The Nexus page lists only the m
 ### Changed
 - The Become Aroused and climax actions follow the Integration Hub's Intimacy setting and each NPC's choice when the Hub is installed: NPC decides lets every adult use them, Intimacy: never shuts them, Always willing and an absolute command open them. Lovers only, or no Hub, keeps the old check. Children never get them.
 - Shorter descriptions for all four actions (less text sent to the model on every reply; same rules).
+- Satisfied now lasts about a day, longer for low-appetite NPCs and shorter for high-appetite ones.
+- No more "seems calm" lines at the start of every talk; a line is sent only when someone has calmed down. Without OSL Aroused installed the module stays idle.
 
 ### Fixed
 - A stranger's satisfied or overwhelmed state is never sent to the talk.
 - The appetite rating and the other silent actions now say plainly that nothing about them may be spoken (an NPC said "I'm rating her appetite quietly" aloud).
 - People from a talk whose end was missed no longer get arousal lines in the next talk, and a child left over from it no longer mutes every line.
 - The duty and open faction lists are read once instead of on every check; the Integration Hub is asked to update an NPC only when the standing changed.
+- Setting the game clock back no longer raises an NPC's climax count or peak timer; recovery starts over from the new time.
+- A married NPC whose spouse is not nearby no longer makes every check search all loaded people; the search waits one game hour before trying again.
+- A duty or open faction from a mod installed mid-playthrough is picked up instead of staying missing.
+- An NPC joining a talk is worked out once instead of twice.
 
 ## 1.1.0 (2026-11-09)
 

@@ -40,6 +40,7 @@ string Property KEY_NEED = "MantellaOSLA_Need" AutoReadOnly ; climaxes needed th
 string Property KEY_CLIMAXES = "MantellaOSLA_Climaxes" AutoReadOnly ; climaxes so far, drains over time
 string Property KEY_CLIMAX_TIME = "MantellaOSLA_ClimaxTime" AutoReadOnly ; game days, last drain
 string Property KEY_SATISFIED = "MantellaOSLA_Satisfied" AutoReadOnly
+string Property KEY_SATISFIED_UNTIL = "MantellaOSLA_SatisfiedUntil" AutoReadOnly ; game days, satisfied lasts at least until then
 string Property KEY_OVERWHELMED = "MantellaOSLA_Overwhelmed" AutoReadOnly
 ; 1 always on duty, -1 never; 0 or unset = judged from guard status and duty_factions.
 string Property KEY_ON_DUTY = "MantellaOSLA_OnDuty" AutoReadOnly
@@ -123,7 +124,7 @@ EndFunction
 ; it is left as it is. Either way the snapshot is dropped.
 Event OnCheat(Form akNpc, string asWhat, float afValue)
 	Actor npc = akNpc as Actor
-	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
+	if !npc || npc == Game.GetPlayer() || IsMinor(npc) || !OSLLoaded()
 		return
 	endif
 	if asWhat == "arousal"
@@ -171,10 +172,21 @@ EndEvent
 
 ; An NPC's standing may have changed mid-talk (Relationships wrote MRB_Close, a follower joined): re-read it for a
 ; tracked NPC. Sends no MLW_RefreshNpc itself, since this script's own NPC-added handler sends one.
+Actor _selfRefreshNpc
+float _selfRefreshAt
+
 Event OnLivingWorldRefresh(Form akForm)
 	Actor npc = akForm as Actor
 	if !npc || npc == Game.GetPlayer() || !_actors || !_inConversation
 		return
+	endif
+	; The refresh the NPC-added handler sent right after working this NPC out (one-shot, at most 10 s old).
+	if npc == _selfRefreshNpc
+		_selfRefreshNpc = None
+		float age = Utility.GetCurrentRealTime() - _selfRefreshAt
+		if age >= 0.0 && age < 10.0
+			return
+		endif
 	endif
 	int slot = _actors.Find(npc)
 	if slot < 0
@@ -268,6 +280,9 @@ EndFunction
 ; 0 calm, 1 a little flushed, 2 noticeably aroused, 3 intensely aroused, 4 peak (100).
 ; OSL blends toward a baseline, so an NPC set to 100 reads back around 99.
 int Function GetBand(Actor akActor)
+	if !OSLLoaded()
+		return 0
+	endif
 	float arousal = OSLArousedNative.GetArousalNoSideEffects(akActor)
 	if arousal >= 98.0
 		return 4
@@ -414,6 +429,13 @@ Actor Function SpouseOf(Actor akActor)
 	if !spouse || !partners || partners.Length == 0
 		return None
 	endif
+	; A spouse not found among the loaded actors is not searched for again for one game hour (the scan is slow and
+	; GetTier asks on every check). A clock set back starts the search over.
+	float now = Utility.GetCurrentGameTime()
+	float missed = StorageUtil.GetFloatValue(akActor, "MantellaOSLA_SpouseMiss", -1.0)
+	if missed >= 0.0 && now >= missed && now - missed < 1.0 / 24.0
+		return None
+	endif
 	Actor[] loaded = PO3_SKSEFunctions.GetActorsByProcessingLevel(0)
 	int i = loaded.Length
 	while i > 0
@@ -421,9 +443,11 @@ Actor Function SpouseOf(Actor akActor)
 		Actor other = loaded[i]
 		if other && other != akActor && partners.Find(other.GetActorBase()) >= 0
 			StorageUtil.SetFormValue(akActor, "MantellaOSLA_Spouse", other)
+			StorageUtil.UnsetFloatValue(akActor, "MantellaOSLA_SpouseMiss")
 			return other
 		endif
 	endWhile
+	StorageUtil.SetFloatValue(akActor, "MantellaOSLA_SpouseMiss", now)
 	return None
 EndFunction
 
@@ -553,6 +577,9 @@ bool Function IsLusty(Actor akActor)
 	if appetite > 0
 		return appetite >= JsonUtil.GetIntValue(SETTINGS_FILE, "lusty_appetite", 15)
 	endif
+	if !OSLLoaded()
+		return false
+	endif
 	float threshold = JsonUtil.GetFloatValue(SETTINGS_FILE, "multiplier_threshold", 1.5)
 	return OSLArousedNative.GetArousalMultiplier(akActor) >= threshold || OSLArousedNative.IsActorExhibitionist(akActor)
 EndFunction
@@ -570,6 +597,11 @@ bool Function IsClose(Actor akActor)
 		return true
 	endif
 	return IsIntimate(akActor)
+EndFunction
+
+; Without OSL Aroused there is no arousal to read: no checks run and no lines are sent.
+bool Function OSLLoaded()
+	return Game.GetModByName("OSLAroused.esp") != 255 || Game.GetLightModByName("OSLAroused.esp") != 65535
 EndFunction
 
 ; MRB_Close is only cleared by the Relationships module, so it is trusted only while that module is installed.
@@ -674,6 +706,10 @@ float Function GetClimaxes(Actor akActor)
 	endif
 	float now = Utility.GetCurrentGameTime()
 	float last = StorageUtil.GetFloatValue(akActor, KEY_CLIMAX_TIME, now)
+	if now < last
+		; The game clock was set back: no drain (a negative one would raise the count); recovery counts from now.
+		last = now
+	endif
 	float days = JsonUtil.GetFloatValue(SETTINGS_FILE, "recovery_days", 1.0)
 	if days <= 0.0
 		days = 1.0
@@ -737,6 +773,30 @@ int Function OverwhelmLimit(Actor akActor)
 	return Math.Ceiling(GetNeed(akActor) * JsonUtil.GetFloatValue(SETTINGS_FILE, "overwhelm_ratio", 1.5))
 EndFunction
 
+; recovery_days (game days in which the count drains by the full rating; 1 by default).
+float Function RecoveryDays()
+	float days = JsonUtil.GetFloatValue(SETTINGS_FILE, "recovery_days", 1.0)
+	if days <= 0.0
+		days = 1.0
+	endif
+	return days
+EndFunction
+
+; How long satisfied lasts, in game days: one recovery period at appetite 10, twice that at 5 or less, half at 20 or more.
+float Function SatisfiedDays(Actor akActor)
+	float scale = 1.0
+	int appetite = GetAppetite(akActor)
+	if appetite > 0
+		scale = 10.0 / (appetite as float)
+	endif
+	if scale < 0.5
+		scale = 0.5
+	elseif scale > 2.0
+		scale = 2.0
+	endif
+	return RecoveryDays() * scale
+EndFunction
+
 ; Flips the satisfied and overwhelmed flags when the count crosses the need or
 ; the overwhelm limit. Returns the line to send when one was just reached, else "".
 string Function UpdateSatisfied(Actor akActor)
@@ -749,14 +809,33 @@ string Function UpdateSatisfied(Actor akActor)
 	bool was = IsSatisfied(akActor)
 	bool wasOver = IsOverwhelmed(akActor)
 	string line = ""
+	float now = Utility.GetCurrentGameTime()
 	if count >= need && !was
 		StorageUtil.SetIntValue(akActor, KEY_SATISFIED, 1)
+		StorageUtil.SetFloatValue(akActor, KEY_SATISFIED_UNTIL, now + SatisfiedDays(akActor))
 		SetArousalNow(akActor, 0.0)
 		StorageUtil.UnsetFloatValue(akActor, KEY_PEAK_SINCE)
 		StorageUtil.UnsetIntValue(akActor, KEY_PEAK_RAISES)
 		line = akActor.GetDisplayName() + " is completely satisfied for now."
+	elseif count >= need && was
+		; Satisfied again after the time ran out (the flag was never cleared, the count stayed up): a new time.
+		; A time still running is not extended.
+		if now >= StorageUtil.GetFloatValue(akActor, KEY_SATISFIED_UNTIL, 0.0)
+			StorageUtil.SetFloatValue(akActor, KEY_SATISFIED_UNTIL, now + SatisfiedDays(akActor))
+		endif
 	elseif count < need && was
-		StorageUtil.UnsetIntValue(akActor, KEY_SATISFIED)
+		; Satisfied lasts until its time is up, even once the count has drained below the need. Saves from before
+		; the time existed read 0: the old rule.
+		float untilTime = StorageUtil.GetFloatValue(akActor, KEY_SATISFIED_UNTIL, 0.0)
+		if untilTime - now > RecoveryDays() * 2.0
+			; The game clock was set back: the time starts over from now.
+			untilTime = now + SatisfiedDays(akActor)
+			StorageUtil.SetFloatValue(akActor, KEY_SATISFIED_UNTIL, untilTime)
+		endif
+		if now >= untilTime
+			StorageUtil.UnsetIntValue(akActor, KEY_SATISFIED)
+			StorageUtil.UnsetFloatValue(akActor, KEY_SATISFIED_UNTIL)
+		endif
 	endif
 	if count >= limit && !wasOver
 		StorageUtil.SetIntValue(akActor, KEY_OVERWHELMED, 1)
@@ -837,7 +916,14 @@ float Function PeakRealMinutes(Actor akActor)
 	if timescaleGlobal && timescaleGlobal.GetValue() > 0.0
 		timescale = timescaleGlobal.GetValue()
 	endif
-	return (Utility.GetCurrentGameTime() - since) * 1440.0 / timescale
+	float now = Utility.GetCurrentGameTime()
+	if now < since
+		; The game clock was set back: the time at 100 counts from now.
+		StorageUtil.SetFloatValue(akActor, KEY_PEAK_SINCE, now)
+		StorageUtil.UnsetIntValue(akActor, KEY_PEAK_RAISES)
+		return 0.0
+	endif
+	return (now - since) * 1440.0 / timescale
 EndFunction
 
 ; The "right here, right now" line, once per conversation, for forward NPCs
@@ -879,8 +965,8 @@ string Function Objective(Actor akActor)
 EndFunction
 
 
-; The player's own level.
-string Function Describe(Actor akActor, int band)
+; The player's own level. Calm is only mentioned when it follows a higher level.
+string Function Describe(Actor akActor, int band, int aiOldBand)
 	string name = akActor.GetDisplayName()
 	if band >= 3
 		return name + " is intensely aroused."
@@ -888,8 +974,10 @@ string Function Describe(Actor akActor, int band)
 		return name + " seems noticeably aroused."
 	elseif band == 1
 		return name + " looks a little flushed."
+	elseif aiOldBand >= 1
+		return name + " has calmed down."
 	endif
-	return name + " seems calm."
+	return ""
 EndFunction
 
 ; A stranger's level: a private mood, never aimed at the player. Nothing below noticeably aroused.
@@ -913,8 +1001,11 @@ string Function DescribeNpc(Actor akActor, int band, int tier, int aiStanding, i
 	string p = Pronoun(akActor)
 	if aiStanding == STANDING_STRANGER  ; satisfied or not: a stranger's sexual state is none of the talk's business
 		return ""
-	elseif band == 0
-		return name + " seems calm."
+	elseif band == 0  ; calm is only mentioned when it follows a higher level
+		if aiOldBand >= 1
+			return name + " has calmed down."
+		endif
+		return ""
 	elseif band == 1
 		return name + " looks a little flushed."
 	elseif IsSatisfied(akActor)
@@ -982,7 +1073,7 @@ EndFunction
 ; Waits until someone close is in the conversation.
 Function UpdatePlayerLine()
 	; Nothing while a child is in the talk; the band is sent once the child has left.
-	if MinorInTalk()
+	if MinorInTalk() || !OSLLoaded()
 		return
 	endif
 	Actor player = Game.GetPlayer()
@@ -1006,8 +1097,12 @@ Function UpdatePlayerLine()
 	if aware == 0
 		return
 	endif
+	int oldBand = _playerBand
 	_playerBand = band
-	string line = Describe(player, band)
+	string line = Describe(player, band, oldBand)
+	if line == ""
+		return
+	endif
 	if strangers
 		string names = ""
 		int added = 0
@@ -1045,13 +1140,18 @@ Event OnMantellaStarted()
 	EndIf
 	; Saves made before the actions existed only registered the conversation events in OnInit.
 	RegisterEvents()
+	; The faction lists are resolved again once per talk, so a faction from a mod installed mid-playthrough is found.
+	_dutySig = "-"
+	_openSig = "-"
 	AllocateTracked()
 	if !_inConversation
 		ClearTracked()
 		_inConversation = true
 	endif
 	UpdatePlayerLine()
-	RegisterForSingleUpdate(CheckInterval)
+	if OSLLoaded()
+		RegisterForSingleUpdate(CheckInterval)
+	endif
 	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
 		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main,OnMantellaStarted_end,\n", true, false)
 	EndIf
@@ -1072,7 +1172,9 @@ Event OnMantellaNpcAdded(Form akForm)
 	if !_inConversation
 		ClearTracked()
 		_inConversation = true
-		RegisterForSingleUpdate(CheckInterval)
+		if OSLLoaded()
+			RegisterForSingleUpdate(CheckInterval)
+		endif
 	else
 		DropLeftovers()  ; an earlier talk whose Ended never came: its people and children are not in this one
 	endif
@@ -1113,6 +1215,9 @@ Event OnMantellaNpcAdded(Form akForm)
 	bool changed = StorageUtil.GetIntValue(npc, KEY_IS_CLOSE, -99) != _standing[slot]
 	StorageUtil.SetIntValue(npc, KEY_IS_CLOSE, _standing[slot])
 	if changed  ; the Hub rewrites the file only when what it reads from here changed
+		; Standing and tier were just worked out: this script's own handler skips that one refresh.
+		_selfRefreshNpc = npc
+		_selfRefreshAt = Utility.GetCurrentRealTime()
 		RefreshLivingWorldNpc(npc)
 	endif
 	_peakLongSent[slot] = false
@@ -1286,12 +1391,15 @@ EndFunction
 ; toward the baseline for all the time since the last check again (and away from it, without limit, if the game clock
 ; was set back). GetArousal (with side effects) first stores the value for right now, so the set value is what is read.
 Function SetArousalNow(Actor akActor, float afValue)
+	if !OSLLoaded()
+		return
+	endif
 	OSLArousedNative.GetArousal(akActor)
 	OSLArousedNative.SetArousal(akActor, afValue)
 EndFunction
 
 Function ShiftArousal(Actor npc, float amount)
-	if !npc || npc == Game.GetPlayer() || IsMinor(npc)
+	if !npc || npc == Game.GetPlayer() || IsMinor(npc) || !OSLLoaded()
 		return
 	endif
 	if amount > 0.0 && !AllowsIntimacy(npc)
@@ -1318,6 +1426,9 @@ EndFunction
 ; level changed or the peak timer ran out. Asks NPCs who are not strangers for a
 ; rating once they are aroused; a stranger's appetite is none of the conversation's business.
 Function CheckSlot(int slot)
+	if !OSLLoaded()
+		return
+	endif
 	Actor npc = _actors[slot]
 	bool stranger = _standing[slot] == STANDING_STRANGER
 	string line = UpdateSatisfied(npc)
@@ -1355,7 +1466,7 @@ Function CheckSlot(int slot)
 EndFunction
 
 Event OnUpdate()
-	if !_inConversation
+	if !_inConversation || !OSLLoaded()
 		return
 	endif
 	; the Ended event can be missed: no running talk means it is over
