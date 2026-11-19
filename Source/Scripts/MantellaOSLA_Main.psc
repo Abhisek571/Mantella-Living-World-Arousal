@@ -409,7 +409,7 @@ bool Function InPublic(Actor akActor)
 	while i > 0
 		i -= 1
 		Actor other = near[i] as Actor
-		if other && other != akActor && other != player && other.HasKeyword(npcType) && !other.IsDisabled() && !other.IsDead() && !other.IsPlayerTeammate()				&& other.GetSleepState() != 3 && other.GetParentCell() == here
+		if other && other != akActor && other != player && other.HasKeyword(npcType) && !other.IsDisabled() && !other.IsDead() && !other.IsPlayerTeammate() && other.GetSleepState() != 3 && other.GetParentCell() == here
 			return true
 		endif
 	endwhile
@@ -601,12 +601,17 @@ EndFunction
 
 ; Without OSL Aroused there is no arousal to read: no checks run and no lines are sent.
 bool Function OSLLoaded()
-	return Game.GetModByName("OSLAroused.esp") != 255 || Game.GetLightModByName("OSLAroused.esp") != 65535
+	return PluginLoaded("OSLAroused.esp")
 EndFunction
 
 ; MRB_Close is only cleared by the Relationships module, so it is trusted only while that module is installed.
 bool Function RelationshipsLoaded()
-	return Game.GetModByName(RELATIONSHIPS_PLUGIN) != 255 || Game.GetLightModByName(RELATIONSHIPS_PLUGIN) != 65535
+	return PluginLoaded(RELATIONSHIPS_PLUGIN)
+EndFunction
+
+; A full plugin (255 = not loaded) or a light one (65535 = not loaded) of this name is loaded.
+bool Function PluginLoaded(string asPlugin)
+	return Game.GetModByName(asPlugin) != 255 || Game.GetLightModByName(asPlugin) != 65535
 EndFunction
 
 ; The same test as the Hub's "intimate" action gate. With the Integration Hub its Intimacy setting and per-NPC choice
@@ -662,7 +667,7 @@ bool Function IsIntimate(Actor akActor)
 	if akActor.GetRelationshipRank(player) >= 4
 		return true
 	endif
-	if Game.GetModByName("TT_MARAS.esp") != 255 || Game.GetLightModByName("TT_MARAS.esp") != 65535 ; light plugins: 65535 = not loaded
+	if PluginLoaded("TT_MARAS.esp")
 		return MantellaOSLA_MARAS.IsIntimateStatus(akActor)
 	endif
 	return false
@@ -710,10 +715,7 @@ float Function GetClimaxes(Actor akActor)
 		; The game clock was set back: no drain (a negative one would raise the count); recovery counts from now.
 		last = now
 	endif
-	float days = JsonUtil.GetFloatValue(SETTINGS_FILE, "recovery_days", 1.0)
-	if days <= 0.0
-		days = 1.0
-	endif
+	float days = RecoveryDays()
 	int rate = GetAppetite(akActor)
 	if rate <= 0
 		rate = UnratedAppetite
@@ -950,15 +952,20 @@ EndFunction
 ; Lines
 ; ---------------------------------------------------------------------------
 
+; The leveled base: a templated NPC's sex comes from the template.
+bool Function IsFemale(Actor akActor)
+	return akActor.GetLeveledActorBase().GetSex() == 1
+EndFunction
+
 string Function Pronoun(Actor akActor)
-	if akActor.GetLeveledActorBase().GetSex() == 1
+	if IsFemale(akActor)
 		return "she"
 	endif
 	return "he"
 EndFunction
 
 string Function Objective(Actor akActor)
-	if akActor.GetLeveledActorBase().GetSex() == 1
+	if IsFemale(akActor)
 		return "her"
 	endif
 	return "him"
@@ -1024,7 +1031,7 @@ string Function DescribeNpc(Actor akActor, int band, int tier, int aiStanding, i
 EndFunction
 
 string Function Reflexive(Actor akActor)
-	if akActor.GetLeveledActorBase().GetSex() == 1
+	if IsFemale(akActor)
 		return "herself"
 	endif
 	return "himself"
@@ -1104,23 +1111,7 @@ Function UpdatePlayerLine()
 		return
 	endif
 	if strangers
-		string names = ""
-		int added = 0
-		i = 0
-		while i < MaxTracked
-			if _actors[i] && _standing[i] != STANDING_STRANGER
-				if added > 0
-					if added == aware - 1
-						names += " and "
-					else
-						names += ", "
-					endif
-				endif
-				names += _actors[i].GetDisplayName()
-				added += 1
-			endif
-			i += 1
-		endWhile
+		string names = AwareNames(aware)
 		if aware == 1
 			line += " Only " + names + " knows the player well enough to notice."
 		else
@@ -1130,14 +1121,34 @@ Function UpdatePlayerLine()
 	SendLine(line)
 EndFunction
 
+; The names of the tracked NPCs who are not strangers, as "A", "A and B" or "A, B and C"; aiAware: how many there are.
+string Function AwareNames(int aiAware)
+	string names = ""
+	int added = 0
+	int i = 0
+	while i < MaxTracked
+		if _actors[i] && _standing[i] != STANDING_STRANGER
+			if added > 0
+				if added == aiAware - 1
+					names += " and "
+				else
+					names += ", "
+				endif
+			endif
+			names += _actors[i].GetDisplayName()
+			added += 1
+		endif
+		i += 1
+	endWhile
+	return names
+EndFunction
+
 ; ---------------------------------------------------------------------------
 ; Conversation events
 ; ---------------------------------------------------------------------------
 
 Event OnMantellaStarted()
-	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
-		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main,OnMantellaStarted_start,\n", true, false)
-	EndIf
+	TimingRow("OnMantellaStarted_start")
 	; Saves made before the actions existed only registered the conversation events in OnInit.
 	RegisterEvents()
 	; The faction lists are resolved again once per talk, so a faction from a mod installed mid-playthrough is found.
@@ -1152,10 +1163,15 @@ Event OnMantellaStarted()
 	if OSLLoaded()
 		RegisterForSingleUpdate(CheckInterval)
 	endif
-	If StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1  ; speed testing (off by default): one stage-time row
-		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main,OnMantellaStarted_end,\n", true, false)
-	EndIf
+	TimingRow("OnMantellaStarted_end")
 EndEvent
+
+; Speed testing (off by default): one stage-time row for this script.
+Function TimingRow(string asStage)
+	if StorageUtil.GetIntValue(None, "MLW_TimingOn", 0) == 1
+		MiscUtil.WriteToFile("Data/SKSE/Plugins/StorageUtilData/MantellaLivingWorld/timing_game.csv", StorageUtil.GetIntValue(None, "MLW_TimingTalk", 0) + "," + Utility.GetCurrentRealTime() + ",MantellaOSLA_Main," + asStage + ",\n", true, false)
+	endif
+EndFunction
 
 Event OnMantellaEnded()
 	_inConversation = false
